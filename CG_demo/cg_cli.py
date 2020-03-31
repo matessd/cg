@@ -35,7 +35,10 @@ if __name__ == '__main__':
                         for x, y in pixels:
                             canvas[y, x] = color
                     elif item_type == 'polygon':
-                        pass
+                        pixels = alg.draw_polygon(p_list, algorithm)
+                        for x, y in pixels:
+                            #print([y, x])
+                            canvas[y, x] = color
                     elif item_type == 'ellipse':
                         pass
                     elif item_type == 'curve':
@@ -53,6 +56,16 @@ if __name__ == '__main__':
                 y1 = int(line[5])
                 algorithm = line[6]
                 item_dict[item_id] = ['line', [[x0, y0], [x1, y1]], algorithm, np.array(pen_color)]
+            elif line[0] == 'drawPolygon':
+                item_id = line[1]
+                length = (int)((len(line) - 3)/2)
+                pixels = []
+                for i in range(0, length):
+                    x = int(line[2+2*i])
+                    y = int(line[3+2*i])
+                    pixels.append([x,y])
+                algorithm = line[length*2+2]
+                item_dict[item_id] = ['polygon', pixels, algorithm, np.array(pen_color)]
             ...
 
             line = fp.readline()

@@ -19,27 +19,33 @@
 
 %--
 \begin{document}
-\title{\textbf{《计算机图形学》x月报告}}
-\author{学号，姓名，\href{mailto:xxx@xxx.com}{xxx@xxx.com}}
+\title{\textbf{《计算机图形学》 3月报告 }}
+\author{学号，姓名，\href{mailto:xxx@xxx.com}{171240511@smail.nju.edu.cn}}
 \maketitle
 
 \section{综述}
-\dots
+在老师所给框架代码上进行完善,暂时只完成了线段绘制、多边形绘制的算法部分和gui的线段绘制.
 
 \section{算法介绍}
-\subsection{\dots}
-直线DDA"计算机图形学的算法基础".\cite{cg_teach}\\
-\cite{Wille1982}
-\subsection{\dots}
-\dots
+\subsection{绘制线段}
+目前假定指令中两端点不等.\\
+\indent DDA算法:基本思想是记下起点,然后让长的一边变量不断加一,短的一边则不断加斜率后取近似\cite{rog_2002}\\
+\indent Bresenham算法:也是长的每次加一,但是短的一边则是累计再近似,因此精度更高.而因为采用了判断e符号的方法,可以转换成全整数计算,也更快速.\cite{rog_2002}\\
+\indent 因为讲义中说不要求像素级一致,所以目前和伪代码一样只亮一边端点.
+\subsection{绘制多边形}
+直接调用线段绘制算法连点.\\
+\indent 但是对于多边形绘制边的选择有点不确定,目前理解的是指令中的点是排好序的,都是邻边.
 		
 \section{系统介绍}
-\dots
+gui部分中目前仍按原始代码用QListWidget记录图元, 能鼠标控制两种算法绘制线段,
+多边形的鼠标绘制尚未完成.\\
+\indent 还在思考gui中怎么不用键盘设置画布大小和画笔颜色.
 
 \section{总结}
-\dots
+暂时防忘:
+\indent 1.画布的宽是[0, width-1],高是[0, height-1]
 
 \bibliographystyle{plain}%
 %"xxx" should be your citing file's name.
-\bibliography{ref}
+\bibliography{cgref}
 \end{document}

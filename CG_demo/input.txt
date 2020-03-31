@@ -1,7 +1,10 @@
 resetCanvas 600 500
 setColor 0 255 0
-drawLine line1 100 50 500 200 DDA
+drawLine line1 599 499 300 200 DDA
 saveCanvas 3
-setColor 255 0 0
+setColor 0 0 255
 drawLine 666 200 300 400 150 DDA
 saveCanvas 4
+setColor 255 0 255
+drawPolygon pol 0 0 599 499 599 0 DDA
+saveCanvas 7

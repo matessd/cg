@@ -41,6 +41,7 @@ class MyCanvas(QGraphicsView):
         self.temp_id = item_id
 
     def finish_draw(self):
+        self.main_window.id_inc()
         self.temp_id = self.main_window.get_id()
 
     def clear_selection(self):
@@ -187,6 +188,8 @@ class MainWindow(QMainWindow):
         # 连接信号和槽函数
         exit_act.triggered.connect(qApp.quit)
         line_naive_act.triggered.connect(self.line_naive_action)
+        line_dda_act.triggered.connect(self.line_dda_action)
+        line_bresenham_act.triggered.connect(self.line_bresenham_action)
         self.list_widget.currentTextChanged.connect(self.canvas_widget.selection_changed)
 
         # 设置主窗口的布局
@@ -202,12 +205,29 @@ class MainWindow(QMainWindow):
 
     def get_id(self):
         _id = str(self.item_cnt)
-        self.item_cnt += 1
+        #self.item_cnt += 1
         return _id
 
+    def id_inc(self):
+        self.item_cnt += 1
+        
     def line_naive_action(self):
         self.canvas_widget.start_draw_line('Naive', self.get_id())
         self.statusBar().showMessage('Naive算法绘制线段')
+        self.list_widget.clearSelection()
+        self.canvas_widget.clear_selection()
+    
+    #DDA绘制线段    
+    def line_dda_action(self):
+        self.canvas_widget.start_draw_line('DDA', self.get_id())
+        self.statusBar().showMessage('DDA算法绘制线段')
+        self.list_widget.clearSelection()
+        self.canvas_widget.clear_selection() 
+        
+    #Bresenham绘制线段
+    def line_bresenham_action(self):
+        self.canvas_widget.start_draw_line('Bresenham', self.get_id())
+        self.statusBar().showMessage('Bresenham算法绘制线段')
         self.list_widget.clearSelection()
         self.canvas_widget.clear_selection()
 

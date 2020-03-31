@@ -4,6 +4,13 @@
 # 本文件只允许依赖math库
 import math
 
+def Sign(x):
+    if x<0:
+        return -1
+    elif x==0:
+        return 0
+    else :
+        return 1
 
 def draw_line(p_list, algorithm):
     """绘制线段
@@ -35,11 +42,39 @@ def draw_line(p_list, algorithm):
         dx = (x1-x0)/length
         dy = (y1-y0)/length
         for i in range(1, length+1):
-            #这里i是从1开始还是从0开始好？
+            #这里i是从1开始还是从0开始好？?
             result.append((math.floor(x), math.floor(y)))
             x += dx; y += dy
     elif algorithm == 'Bresenham':
-        pass
+        x = x0
+        y = y0
+        dx = abs(x1-x0)
+        dy = abs(y1-y0)
+        s1 = Sign(x1-x0)
+        s2 = Sign(y1-y0)
+        Interchange = 0
+        if dy>dx:
+            temp = dx
+            dx = dy
+            dy = temp
+            Interchange = 1
+        else :
+            Interchange = 0
+        e_ = 2*dy - dx
+        for i in range(1, dx+1):
+            result.append((x,y))
+            #这里的while能否去掉??
+            while(e_>0):
+                if(Interchange==1):
+                    x = x + s1
+                else :
+                    y = y + s2
+                e_ = e_ - 2*dx
+            if(Interchange==1):
+                y = y + s2
+            else :
+                x = x + s1
+            e_ = e_ + 2*dy
     return result
 
 
@@ -51,8 +86,9 @@ def draw_polygon(p_list, algorithm):
     :return: (list of list of int: [[x_0, y_0], [x_1, y_1], [x_2, y_2], ...]) 绘制结果的像素点坐标列表
     """
     result = []
-    for i in range(len(p_list)):
-        line = draw_line([p_list[i - 1], p_list[i]], algorithm)
+    length = len(p_list)
+    for i in range(length):
+        line = draw_line([p_list[i], p_list[(i+1)%length]], algorithm)
         result += line
     return result
 
