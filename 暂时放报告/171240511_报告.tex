@@ -39,22 +39,22 @@
 \section{系统介绍}
 gui部分中目前仍按原始代码用QListWidget记录图元, 能鼠标控制两种算法绘制线段,
 多边形的鼠标绘制尚未完成.\\
-\indent 还在思考gui中怎么不用键盘设置画布大小和画笔颜色.
-画笔颜色选择参考了http://code.py40.com/pyqt5/24.html
-
+画笔颜色选择参考了http://code.py40.com/pyqt5/24.html\\
+重置画布\\
+原来的代码由于点击绘制线段和在画布上press mouse都会使id加1,因此图元编号并不连续,对此进行了修改.\\
 \section{总结}
 暂时防忘:
-\indent 1.画布的宽是[0, width-1],高是[0, height-1]
+\indent 1.画布的宽是[0, width-1],高是[0, height-1]\\
 
 \indent 2.gui中sys.exit(app.exec\_())改为app.exec\_(),自己手动退出,不然Spyder运行手动退出时会报错.
 此外,还得加上del app,不然重新运行的时候也会有点问题.
-参考https://stackoverflow.com/questions/10888045/simple-ipython-example-raises-exception-on-sys-exit
+参考https://stackoverflow.com/questions/10888045/simple-ipython-example-raises-exception-on-sys-exit\\
 
 \indent 3.框架代码是鼠标一动就将MyItem中的图元绘制,
 这导致绘制直线的时候直线随着拖动不断绘制,这包括了最开始端点重合的情况,
-对于DDA会出现除0错误,因此要特判.
+对于DDA会出现除0错误,因此要特判.\\
 
-\indent 画笔颜色选择分两步,一个是会用QColorDialog调出调色版,另一个是要将画笔颜色传给MyItem,我选择用全局变量g\_penColor.
+\indent 画笔颜色选择分两步,一个是会用QColorDialog调出调色版,另一个是要将画笔颜色传给MyItem,我选择用全局变量g\_penColor.\\
 
 \bibliographystyle{plain}%
 %"xxx" should be your citing file's name.

@@ -15,7 +15,7 @@ from PyQt5.QtWidgets import (
     QHBoxLayout,
     QWidget,
     QStyleOptionGraphicsItem,
-    QColorDialog)
+    QColorDialog, QInputDialog, QFileDialog)
 from PyQt5.QtGui import QPainter, QMouseEvent, QColor
 from PyQt5.QtCore import QRectF
 
@@ -37,6 +37,20 @@ class MyCanvas(QGraphicsView):
         self.temp_id = ''
         self.temp_item = None
 
+    #clear canvas
+    def clear_canvas(self):
+        #clear
+        self.scene().clear()
+        self.list_widget.clear()
+        self.main_window.reset_id()
+        self.item_dict = {}
+        self.selected_id = ''
+
+        self.status = ''
+        self.temp_algorithm = ''
+        self.temp_id = ''
+        self.temp_item = None        
+    
     def start_draw_line(self, algorithm, item_id):
         self.status = 'line'
         self.temp_algorithm = algorithm
@@ -172,6 +186,7 @@ class MainWindow(QMainWindow):
         file_menu = menubar.addMenu('文件')
         set_pen_act = file_menu.addAction('设置画笔')
         reset_canvas_act = file_menu.addAction('重置画布')
+        save_canvas_act = file_menu.addAction('保存画布')
         exit_act = file_menu.addAction('退出')
         draw_menu = menubar.addMenu('绘制')
         line_menu = draw_menu.addMenu('线段')
@@ -194,10 +209,14 @@ class MainWindow(QMainWindow):
         clip_liang_barsky_act = clip_menu.addAction('Liang-Barsky')
 
         # 连接信号和槽函数
+        #画笔
+        set_pen_act.triggered.connect(self.pen_color_change)
+        #reset canvas
+        reset_canvas_act.triggered.connect(self.reset_canvas)
+        #保存画布
+        save_canvas_act.triggered.connect(self.save_canvas)
         #退出
         exit_act.triggered.connect(qApp.quit)
-        #画笔
-        set_pen_act.triggered.connect(self.penColorChange)
         #line
         line_naive_act.triggered.connect(self.line_naive_action)
         line_dda_act.triggered.connect(self.line_dda_action)
@@ -215,26 +234,47 @@ class MainWindow(QMainWindow):
         self.resize(600, 600)
         self.setWindowTitle('CG Demo')
 
+    #clear and resize canvas
+    def reset_canvas(self):
+        self.canvas_widget.clear_canvas()
+        #resize
+        text1,ok1 = QInputDialog.getText(self, '输入画布尺寸', 'x轴大小:')
+        text2,ok2 = QInputDialog.getText(self, '输入画布尺寸', 'y轴大小:')
+        if ok1!=1 or ok2!=1:
+            return
+        x = int(text1)
+        y = int(text2)
+        if x>1000 or x<100 or y>1000 or y<100:
+            print("Resize Error: x>1000 or x<100 or y>1000 or y<100.")
+            return
+        self.canvas_widget.setFixedSize(x, y)
+    
+    def save_canvas(self):
+        fname = QFileDialog.getSaveFileName(self, 'Save file','default.bmp')        
+        print(fname[0])
     def get_id(self):
         _id = str(self.item_cnt)
         #self.item_cnt += 1
         return _id
-
+    
     def id_inc(self):
         self.item_cnt += 1
+    
+    def reset_id(self):
+        self.item_cnt = 0
      
     #从QColorDialog中选取颜色,并设置为pen的颜色
-    def penColorChange(self):
+    def pen_color_change(self):
         global g_penColor
         color = QColorDialog.getColor()
         g_penColor = color
         
+    #绘制线段
     def line_naive_action(self):
         self.canvas_widget.start_draw_line('Naive', self.get_id())
         self.statusBar().showMessage('Naive算法绘制线段')
         self.list_widget.clearSelection()
-        self.canvas_widget.clear_selection()
-    
+        self.canvas_widget.clear_selection()   
     #DDA绘制线段    
     def line_dda_action(self):
         self.canvas_widget.start_draw_line('DDA', self.get_id())
