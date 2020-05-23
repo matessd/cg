@@ -9,11 +9,11 @@ from PIL import Image
 
 
 if __name__ == '__main__':
-    input_file = sys.argv[1]
-    output_dir = sys.argv[2]
+    input_file = sys.argv[1] #command file
+    output_dir = sys.argv[2] #dir which stored bmp picture
     os.makedirs(output_dir, exist_ok=True)
 
-    item_dict = {}
+    item_dict = {} #describe how and where to draw
     pen_color = np.zeros(3, np.uint8)
     width = 0
     height = 0
@@ -22,12 +22,17 @@ if __name__ == '__main__':
         line = fp.readline()
         while line:
             line = line.strip().split(' ')
+            #reset Canvas and clear item_dict
             if line[0] == 'resetCanvas':
+                item_dict = {} #清空画布
                 width = int(line[1])
                 height = int(line[2])
+            #draw the Canvas by item_dict, and save as .bmp picture
             elif line[0] == 'saveCanvas':
                 save_name = line[1]
+                #three dimension
                 canvas = np.zeros([height, width, 3], np.uint8)
+                #red 255, green 255, blue 255
                 canvas.fill(255)
                 for item_type, p_list, algorithm, color in item_dict.values():
                     if item_type == 'line':
@@ -43,7 +48,9 @@ if __name__ == '__main__':
                         pass
                     elif item_type == 'curve':
                         pass
+                #save as bmp
                 Image.fromarray(canvas).save(os.path.join(output_dir, save_name + '.bmp'), 'bmp')
+            #bleow deals item_dict
             elif line[0] == 'setColor':
                 pen_color[0] = int(line[1])
                 pen_color[1] = int(line[2])
@@ -54,17 +61,18 @@ if __name__ == '__main__':
                 y0 = int(line[3])
                 x1 = int(line[4])
                 y1 = int(line[5])
-                algorithm = line[6]
+                algorithm = line[-1]
                 item_dict[item_id] = ['line', [[x0, y0], [x1, y1]], algorithm, np.array(pen_color)]
             elif line[0] == 'drawPolygon':
                 item_id = line[1]
-                length = (int)((len(line) - 3)/2)
+                #number of coordinates
+                coor_num = (int)((len(line) - 3)/2)
                 pixels = []
-                for i in range(0, length):
+                for i in range(0, coor_num):
                     x = int(line[2+2*i])
                     y = int(line[3+2*i])
                     pixels.append([x,y])
-                algorithm = line[length*2+2]
+                algorithm = line[-1]
                 item_dict[item_id] = ['polygon', pixels, algorithm, np.array(pen_color)]
             ...
 

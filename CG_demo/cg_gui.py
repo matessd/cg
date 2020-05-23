@@ -14,11 +14,13 @@ from PyQt5.QtWidgets import (
     QListWidget,
     QHBoxLayout,
     QWidget,
-    QStyleOptionGraphicsItem)
+    QStyleOptionGraphicsItem,
+    QColorDialog)
 from PyQt5.QtGui import QPainter, QMouseEvent, QColor
 from PyQt5.QtCore import QRectF
 
-
+global g_penColor #used when set pencolor
+g_penColor = QColor(0,0,0) #black
 class MyCanvas(QGraphicsView):
     """
     画布窗体类，继承自QGraphicsView，采用QGraphicsView、QGraphicsScene、QGraphicsItem的绘图框架
@@ -106,8 +108,12 @@ class MyItem(QGraphicsItem):
         self.p_list = p_list        # 图元参数
         self.algorithm = algorithm  # 绘制算法，'DDA'、'Bresenham'、'Bezier'、'B-spline'等
         self.selected = False
+        
+        self.penColor = g_penColor  # 自己的penColor
 
+    #gui会在鼠标事件自动调用paint重新绘制所有图元
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: Optional[QWidget] = ...) -> None:
+        painter.setPen(self.penColor)
         if self.item_type == 'line':
             item_pixels = alg.draw_line(self.p_list, self.algorithm)
             for p in item_pixels:
@@ -121,7 +127,8 @@ class MyItem(QGraphicsItem):
             pass
         elif self.item_type == 'curve':
             pass
-
+        
+    #选中图元时绘制边框
     def boundingRect(self) -> QRectF:
         if self.item_type == 'line':
             x0, y0 = self.p_list[0]
@@ -147,7 +154,8 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.item_cnt = 0
 
-        # 使用QListWidget来记录已有的图元，并用于选择图元。注：这是图元选择的简单实现方法，更好的实现是在画布中直接用鼠标选择图元
+        # 使用QListWidget来记录已有的图元，并用于选择图元。
+        # 注：这是图元选择的简单实现方法，更好的实现是在画布中直接用鼠标选择图元
         self.list_widget = QListWidget(self)
         self.list_widget.setMinimumWidth(200)
 
@@ -186,7 +194,11 @@ class MainWindow(QMainWindow):
         clip_liang_barsky_act = clip_menu.addAction('Liang-Barsky')
 
         # 连接信号和槽函数
+        #退出
         exit_act.triggered.connect(qApp.quit)
+        #画笔
+        set_pen_act.triggered.connect(self.penColorChange)
+        #line
         line_naive_act.triggered.connect(self.line_naive_action)
         line_dda_act.triggered.connect(self.line_dda_action)
         line_bresenham_act.triggered.connect(self.line_bresenham_action)
@@ -210,6 +222,12 @@ class MainWindow(QMainWindow):
 
     def id_inc(self):
         self.item_cnt += 1
+     
+    #从QColorDialog中选取颜色,并设置为pen的颜色
+    def penColorChange(self):
+        global g_penColor
+        color = QColorDialog.getColor()
+        g_penColor = color
         
     def line_naive_action(self):
         self.canvas_widget.start_draw_line('Naive', self.get_id())
@@ -236,4 +254,6 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     mw = MainWindow()
     mw.show()
-    sys.exit(app.exec_())
+    app.exec_()
+    del app
+    #sys.exit(0)

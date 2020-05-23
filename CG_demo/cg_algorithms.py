@@ -39,6 +39,10 @@ def draw_line(p_list, algorithm):
         else:
             length = abs(y0-y1)
         x = x0+0.5; y = y0+0.5
+        #avoid dividing by 0, gui may appear this situation
+        if length==0:
+            result.append((x0,y0))
+            return result
         dx = (x1-x0)/length
         dy = (y1-y0)/length
         for i in range(1, length+1):
