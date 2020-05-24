@@ -16,7 +16,7 @@ from PyQt5.QtWidgets import (
     QWidget,
     QStyleOptionGraphicsItem,
     QColorDialog, QInputDialog, QFileDialog)
-from PyQt5.QtGui import QPainter, QMouseEvent, QColor
+from PyQt5.QtGui import QPainter, QMouseEvent, QColor, QPixmap
 from PyQt5.QtCore import QRectF
 
 global g_penColor #used when set pencolor
@@ -248,10 +248,26 @@ class MainWindow(QMainWindow):
             print("Resize Error: x>1000 or x<100 or y>1000 or y<100.")
             return
         self.canvas_widget.setFixedSize(x, y)
+        self.scene.setSceneRect(0, 0, x, y)
+        self.resize(x, y)
     
+    #保存画布
     def save_canvas(self):
-        fname = QFileDialog.getSaveFileName(self, 'Save file','default.bmp')        
-        print(fname[0])
+        fname = QFileDialog.getSaveFileName(self, 'Save file',\
+                                        '/home/output/default','Image files (*.bmp)')        
+        # Get QRectF
+        rect = self.scene.sceneRect()
+        # Create a pixmap, fill with white color
+        pixmap = QPixmap(600,600)
+        pixmap.fill(QColor(255,255,255))
+        # painter
+        painter = QPainter(pixmap)
+        # Render scene to the pixmap
+        self.scene.render(painter, rect, rect)
+        painter.end()
+        # save bmp file
+        pixmap.save(fname[0])    
+    
     def get_id(self):
         _id = str(self.item_cnt)
         #self.item_cnt += 1
@@ -289,9 +305,9 @@ class MainWindow(QMainWindow):
         self.list_widget.clearSelection()
         self.canvas_widget.clear_selection()
 
-
 if __name__ == '__main__':
     app = QApplication(sys.argv)
+    #print(dir(QGraphicsScene))
     mw = MainWindow()
     mw.show()
     app.exec_()
