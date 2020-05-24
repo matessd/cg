@@ -135,6 +135,7 @@ class MyItem(QGraphicsItem):
             if self.selected:
                 painter.setPen(QColor(255, 0, 0))
                 painter.drawRect(self.boundingRect())
+            print(item_pixels)
         elif self.item_type == 'polygon':
             pass
         elif self.item_type == 'ellipse':
