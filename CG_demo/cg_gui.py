@@ -27,6 +27,8 @@ def if_close(x0, x1):
 
 global g_penColor #used when set pencolor
 g_penColor = QColor(0,0,0) #black
+global g_width, g_height
+g_width = g_height = 600
 
 class MyCanvas(QGraphicsView):
     """
@@ -230,9 +232,9 @@ class MainWindow(QMainWindow):
 
         # 使用QGraphicsView作为画布
         self.scene = QGraphicsScene(self)
-        self.scene.setSceneRect(0, 0, 600, 600)
+        self.scene.setSceneRect(0, 0, g_width, g_height)
         self.canvas_widget = MyCanvas(self.scene, self)
-        self.canvas_widget.setFixedSize(600, 600)
+        self.canvas_widget.setFixedSize(g_width, g_height)
         self.canvas_widget.main_window = self
         self.canvas_widget.list_widget = self.list_widget
 
@@ -290,7 +292,7 @@ class MainWindow(QMainWindow):
         self.central_widget.setLayout(self.hbox_layout)
         self.setCentralWidget(self.central_widget)
         self.statusBar().showMessage('空闲')
-        self.resize(600, 600)
+        self.resize(g_width, g_height)
         self.setWindowTitle('CG Demo')
 
     #clear and resize canvas
@@ -309,15 +311,21 @@ class MainWindow(QMainWindow):
         self.canvas_widget.setFixedSize(x, y)
         self.scene.setSceneRect(0, 0, x, y)
         self.resize(x, y)
+        global g_width, g_height
+        g_width= x
+        g_height = y
     
     #保存画布
     def save_canvas(self):
         fname = QFileDialog.getSaveFileName(self, 'Save file',\
                                         '/home/output/default','Image files (*.bmp)')        
+        #cancel save
+        if(fname[0]==''):
+            return
         # Get QRectF
         rect = self.scene.sceneRect()
         # Create a pixmap, fill with white color
-        pixmap = QPixmap(600,600)
+        pixmap = QPixmap(g_width, g_height)
         pixmap.fill(QColor(255,255,255))
         # painter
         painter = QPainter(pixmap)
