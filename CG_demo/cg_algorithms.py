@@ -97,13 +97,61 @@ def draw_polygon(p_list, algorithm):
     return result
 
 
+def set_ellipse_pixels(center, coord):
+    """将[x,y]对称的点加入result
+    :param center: (int) 椭圆中心的坐标
+    :return: (list of list of int) [x,y]及其对称点
+    """
+    result = []
+    xc,yc = center
+    x,y = coord
+    result.append([xc+x,yc+y])
+    if x != 0:
+        result.append([xc-x,yc+y])
+    if y != 0:
+        result.append([xc+x,yc-y])
+    if x !=0 and y!=0:
+        result.append([xc-x,yc-y])
+    return result
+
 def draw_ellipse(p_list):
     """绘制椭圆（采用中点圆生成算法）
 
     :param p_list: (list of list of int: [[x0, y0], [x1, y1]]) 椭圆的矩形包围框左上角和右下角顶点坐标
     :return: (list of list of int: [[x_0, y_0], [x_1, y_1], [x_2, y_2], ...]) 绘制结果的像素点坐标列表
     """
-    pass
+    result = []
+    # compute basic param
+    xc = (p_list[0][0]+p_list[1][0])//2
+    yc = (p_list[0][1]+p_list[1][1])//2
+    rx = abs(p_list[0][0]-p_list[1][0])//2
+    ry = abs(p_list[0][1]-p_list[1][1])//2
+    rx2 = rx**2
+    ry2 = ry**2
+    # init before loop1
+    x,y = 0,ry
+    # p1_k, k=1
+    p1 = ry2 - rx2*ry + rx2/4
+    # region 1
+    while ry2*x < rx2*y:
+        result.extend( set_ellipse_pixels([xc,yc],[x,y]) )
+        if p1<0:
+            p1 = p1 + 2*ry2*(x+1) + ry2
+        else :
+            p1 = p1 + 2*ry2*(x+1) - 2*rx2*(y-1) + ry2
+            y = y-1
+        x = x+1
+    # region 2
+    p2 = ry2*(x+1/2)**2 + rx2*(y-1)**2 - rx2*ry2
+    while y>=0:
+        result.extend( set_ellipse_pixels([xc,yc],[x,y]) )
+        if p2>0:
+            p2 = p2 - 2*rx2*(y-1) + rx2
+        else :
+            p2 = p2 - 2*rx2*(y-1) + 2*ry2*(x+1) + rx2
+            x = x+1
+        y = y-1
+    return result
 
 
 def draw_curve(p_list, algorithm):

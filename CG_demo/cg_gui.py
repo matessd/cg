@@ -72,6 +72,11 @@ class MyCanvas(QGraphicsView):
         self.status = 'polygon'
         self.temp_algorithm = algorithm
         self.temp_id = item_id
+    
+    def start_draw_ellipse(self, algorithm, item_id):
+        self.status = 'ellipse'
+        self.temp_algorithm = algorithm
+        self.temp_id = item_id
         
     def finish_draw(self):
         self.main_window.id_inc()
@@ -97,7 +102,7 @@ class MyCanvas(QGraphicsView):
         pos = self.mapToScene(event.localPos().toPoint())
         x = int(pos.x())
         y = int(pos.y())
-        if self.status == 'line':
+        if self.status == 'line' or self.status == 'ellipse':
             self.temp_item = MyItem(self.temp_id, self.status, \
                                     [[x, y], [x, y]], self.temp_algorithm)
             self.scene().addItem(self.temp_item)
@@ -115,7 +120,7 @@ class MyCanvas(QGraphicsView):
         pos = self.mapToScene(event.localPos().toPoint())
         x = int(pos.x())
         y = int(pos.y())
-        if self.status == 'line':
+        if self.status == 'line' or self.status == 'ellipse':
             self.temp_item.p_list[1] = [x, y]
         elif self.status == 'polygon':
             self.temp_item.p_list[-1] = [x, y]
@@ -123,7 +128,7 @@ class MyCanvas(QGraphicsView):
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
-        if self.status == 'line':
+        if self.status == 'line' or self.status == 'ellipse':
             self.item_dict[self.temp_id] = self.temp_item
             self.list_widget.addItem(self.temp_id)
             self.finish_draw()
@@ -177,7 +182,7 @@ class MyItem(QGraphicsItem):
                 item_pixels.extend(alg.draw_line([self.p_list[i],\
                             self.p_list[i+1]], self.algorithm))
         elif self.item_type == 'ellipse':
-            pass
+            item_pixels = alg.draw_ellipse(self.p_list)
         elif self.item_type == 'curve':
             pass
         #draw
@@ -190,7 +195,7 @@ class MyItem(QGraphicsItem):
     #绘制item时所需范围
     def boundingRect(self) -> QRectF:
         x,y,w,h = [0,0,0,0]
-        if self.item_type == 'line':
+        if self.item_type == 'line' or self.item_type == 'ellipse':
             x0, y0 = self.p_list[0]
             x1, y1 = self.p_list[1]
             x = min(x0, x1)
@@ -211,8 +216,6 @@ class MyItem(QGraphicsItem):
                     h = self.p_list[i][1]
             w = w-x
             h = h-y
-        elif self.item_type == 'ellipse':
-            pass
         elif self.item_type == 'curve':
             pass
         return QRectF(x - 1, y - 1, w + 2, h + 2)
@@ -266,21 +269,23 @@ class MainWindow(QMainWindow):
         clip_liang_barsky_act = clip_menu.addAction('Liang-Barsky')
 
         # 连接信号和槽函数
-        #画笔
+        # 画笔
         set_pen_act.triggered.connect(self.pen_color_change)
-        #reset canvas
+        # reset canvas
         reset_canvas_act.triggered.connect(self.reset_canvas)
-        #保存画布
+        # 保存画布
         save_canvas_act.triggered.connect(self.save_canvas)
-        #退出
+        # 退出
         exit_act.triggered.connect(qApp.quit)
-        #line
+        # line
         line_naive_act.triggered.connect(self.line_naive_action)
         line_dda_act.triggered.connect(self.line_dda_action)
         line_bresenham_act.triggered.connect(self.line_bresenham_action)
-        #polygon
+        # polygon
         polygon_dda_act.triggered.connect(self.polygon_dda_action)
         polygon_bresenham_act.triggered.connect(self.polygon_bresenham_action)
+        # ellipse
+        ellipse_act.triggered.connect(self.ellipse_action)
         
         self.list_widget.currentTextChanged.connect(self.canvas_widget.selection_changed)
 
@@ -383,6 +388,12 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage('DDA算法绘制多边形')
         self.list_widget.clearSelection()
         self.canvas_widget.clear_selection()
+    
+    def ellipse_action(self):
+        self.canvas_widget.start_draw_ellipse('default', self.get_id())
+        self.statusBar().showMessage('绘制椭圆')
+        self.list_widget.clearSelection()
+        self.canvas_widget.clear_selection()        
     
 if __name__ == '__main__':
     app = QApplication(sys.argv)

@@ -1,10 +1,4 @@
 resetCanvas 600 500
 setColor 0 255 0
-drawLine line1 599 499 300 200 DDA
+drawEllipse ssd 200 200 599 499 
 saveCanvas 3
-setColor 0 0 255
-drawLine iine2 200 300 400 150 DDA
-saveCanvas 4
-setColor 255 0 255
-drawPolygon pol 0 0 599 499 599 0 DDA
-saveCanvas 7

@@ -1,0 +1,38 @@
+resetCanvas 1300 600
+setColor 0 0 255
+drawLine l1 300 500 300 40 DDA
+drawLine l2 300 500 300 40 DDA
+drawLine l3 300 500 300 40 DDA
+drawLine r1 300 500 300 40 DDA
+drawLine r2 300 500 300 40 DDA
+drawLine r3 300 500 300 40 DDA
+drawPolygon pt 100 385 100 155 300 40 500 155 500 385 300 500 DDA
+drawPolygon tt 140 362 460 362 300 86 DDA
+clip l1 0 395 600 600 Cohen-Sutherland
+clip l2 0 395 600 600 Cohen-Sutherland
+clip l3 0 395 600 600 Cohen-Sutherland
+rotate l2 300 270 120
+rotate l3 300 270 240
+clip r1 0 86 600 270 Cohen-Sutherland
+clip r2 0 86 600 270 Cohen-Sutherland
+clip r3 0 86 600 270 Cohen-Sutherland
+rotate r2 300 270 120
+rotate r3 300 270 240
+setColor 0 255 0
+drawPolygon esq1 1000 500 1040 460 1020 425 1000 430 DDA
+drawPolygon esq2 1035 420 1050 410 1070 430 1050 450 DDA
+drawCurve ecu 930 410 950 400 1000 480 1050 400 1080 410 Bezier
+translate ecu 0 -16
+drawCurve ecd 900 400 940 400 1000 375 1060 400 1100 400 B-spline
+translate ecd 5 -10
+scale ecd 1000 400 0.7
+drawLine ell1 1000 370 1030 375 DDA
+drawLine ell2 1000 370 1000 185 DDA
+drawCurve ell3 1000 185 1010 270 1080 275 1040 355 Bezier
+drawPolygon esq3 1035 420 1050 410 1070 430 1050 450 DDA
+rotate esq3 1000 400 40
+translate esq3 10 -25
+setColor 255 0 0
+drawEllipse extraecllipse 400 400 600 500
+translate extraecllipse 220 -170
+saveCanvas 1
