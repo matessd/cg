@@ -86,7 +86,7 @@ class MyCanvas(QGraphicsView):
             if self.temp_item.p_list[0] != self.temp_item.p_list[-1]:
                 self.temp_item.p_list.append(self.temp_item.p_list[0])
                 self.updateScene([self.sceneRect()])
-        self.finish_draw()
+        self.finish_draw()        
         
     def clear_selection(self):
         if self.selected_id != '':
@@ -94,13 +94,15 @@ class MyCanvas(QGraphicsView):
             self.selected_id = ''
 
     def selection_changed(self, selected):
+        self.check_finish()
         self.main_window.statusBar().showMessage('图元选择： %s' % selected)
         if self.selected_id != '':
             self.item_dict[self.selected_id].selected = False
             self.item_dict[self.selected_id].update()
-        self.selected_id = selected
-        self.item_dict[selected].selected = True
-        self.item_dict[selected].update()
+        strList = selected.split()
+        self.selected_id = strList[-1]
+        self.item_dict[self.selected_id].selected = True
+        self.item_dict[self.selected_id].update()
         self.status = ''
         self.updateScene([self.sceneRect()])
 
@@ -128,7 +130,14 @@ class MyCanvas(QGraphicsView):
                 if self.temp_algorithm == 'B-spline':
                     self.temp_item.p_list.append([x,y])   
                 else :
-                    self.temp_item.p_list.insert(-1, [x,y])            
+                    self.temp_item.p_list.insert(-1, [x,y])   
+        elif self.status == 'translate':
+            if self.selected_id == '':
+                return
+            sid = self.selected_id
+            self.item_dict[sid].trans_type = 'translate'
+            self.item_dict[sid].poi = [x,y]
+            
         self.updateScene([self.sceneRect()])
         #self.updateScene([self.temp_item.boundingRect()])
         super().mousePressEvent(event)
@@ -150,6 +159,13 @@ class MyCanvas(QGraphicsView):
                     self.temp_item.p_list[-1] = [x, y]
                 else:
                     self.temp_item.p_list[-2] = [x, y]
+        elif self.status == 'translate':
+            if self.selected_id == '':
+                return
+            sid = self.selected_id
+            self.item_dict[sid].trans_type = 'translate'
+            self.item_dict[sid].poi = [x,y]            
+            
         self.updateScene([self.sceneRect()])
         #self.updateScene([self.temp_item.boundingRect()])
         super().mouseMoveEvent(event)
@@ -167,13 +183,13 @@ class MyCanvas(QGraphicsView):
         # main
         if self.status == 'line' or self.status == 'ellipse':
             self.item_dict[self.temp_id] = self.temp_item
-            self.list_widget.addItem(self.temp_id)
+            self.list_widget.addItem(self.status+" "+self.temp_id)
             self.finish_draw()
         elif self.status == 'polygon':
             if self.temp_id not in self.item_dict:
             #add into item_dict
                 self.item_dict[self.temp_id] = self.temp_item
-                self.list_widget.addItem(self.temp_id)
+                self.list_widget.addItem(self.status+" "+self.temp_id)
             elif len(self.temp_item.p_list)>=4 and\
                 if_close(self.temp_item.p_list[0], self.temp_item.p_list[-1]):
             #finish draw polygon
@@ -185,7 +201,13 @@ class MyCanvas(QGraphicsView):
             if self.temp_id not in self.item_dict:
             #add into item_dict
                 self.item_dict[self.temp_id] = self.temp_item
-                self.list_widget.addItem(self.temp_id)          
+                self.list_widget.addItem(self.status+" "+self.temp_id)    
+        elif self.status == 'translate':
+            if self.selected_id == '':
+                return
+            sid = self.selected_id
+            self.item_dict[sid].trans_type = ''
+            self.item_dict[sid].poi = [0,0]
         super().mouseReleaseEvent(event)
 
 
@@ -209,12 +231,19 @@ class MyItem(QGraphicsItem):
         self.selected = False
         
         self.penColor = g_penColor  # 自己的penColor
+        # for transformation
+        self.trans_type = ''
+        self.poi = [0,0] # [x,y]
 
     #gui会在鼠标事件自动调用paint重新绘制所有图元
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: Optional[QWidget] = ...) -> None:
         painter.setPen(self.penColor)
         item_pixels = []
-        #prepare
+        # transformation
+        if self.trans_type == 'translate':
+            center = self.compute_center()
+            alg.translate(self.p_list, self.poi[0]-center[0], self.poi[1]-center[1])
+        # draw figure
         if self.item_type == 'line':
             item_pixels = alg.draw_line(self.p_list, self.algorithm)
         elif self.item_type == 'polygon':
@@ -231,10 +260,14 @@ class MyItem(QGraphicsItem):
             painter.drawPoint(*p)
         if self.selected:
             painter.setPen(QColor(255, 0, 0))
-            painter.drawRect(self.boundingRect())
-        
+            painter.drawRect(self.boundingRect())  
+    
     #绘制item时所需范围
     def boundingRect(self) -> QRectF:
+        x,y,w,h = self.compute_region()
+        return QRectF(x - 1, y - 1, w + 2, h + 2)
+    
+    def compute_region(self):
         x,y,w,h = [0,0,0,0]
         if self.item_type == 'line' or self.item_type == 'ellipse':
             x0, y0 = self.p_list[0]
@@ -257,7 +290,13 @@ class MyItem(QGraphicsItem):
                     h = self.p_list[i][1]
             w = w-x
             h = h-y
-        return QRectF(x - 1, y - 1, w + 2, h + 2)
+        return [x,y,w,h]
+    
+    def compute_center(self):
+        x,y,w,h = self.compute_region()
+        midx = (x+w)/2
+        midy = (y+h)/2
+        return [int(midx),int(midy)]
 
 class MainWindow(QMainWindow):
     """
@@ -328,6 +367,8 @@ class MainWindow(QMainWindow):
         # curve
         curve_bezier_act.triggered.connect(self.curve_bezier_action)
         curve_b_spline_act.triggered.connect(self.curve_b_spline_action)
+        # 平移
+        translate_act.triggered.connect(self.translate_action)
         
         self.list_widget.currentTextChanged.connect(self.canvas_widget.selection_changed)
 
@@ -344,6 +385,7 @@ class MainWindow(QMainWindow):
 
     #clear and resize canvas
     def reset_canvas(self):
+        self.statusBar().showMessage('重置画布')
         self.canvas_widget.clear_canvas()
         #resize
         text1,ok1 = QInputDialog.getText(self, '输入画布尺寸', 'x轴大小:')
@@ -364,6 +406,9 @@ class MainWindow(QMainWindow):
     
     #保存画布
     def save_canvas(self):
+        self.statusBar().showMessage('保存画布')
+        self.list_widget.clearSelection()
+        self.canvas_widget.clear_selection() 
         # 令前一个没完成图形完成
         self.canvas_widget.check_finish()
         
@@ -398,11 +443,14 @@ class MainWindow(QMainWindow):
      
     #从QColorDialog中选取颜色,并设置为pen的颜色
     def pen_color_change(self):
+        self.statusBar().showMessage('设置画笔颜色')
+        self.list_widget.clearSelection()
+        self.canvas_widget.clear_selection() 
+        # 设置画笔颜色也会令前一个没完成图形完成
+        self.canvas_widget.check_finish()
         global g_penColor
         color = QColorDialog.getColor()
         g_penColor = color
-        # 设置画笔颜色也会令前一个没完成图形完成
-        self.canvas_widget.check_finish()
     
     """    
     #绘制线段
@@ -457,9 +505,13 @@ class MainWindow(QMainWindow):
         self.list_widget.clearSelection()
         self.canvas_widget.clear_selection() 
     
+    # 平移
+    def translate_action(self):
+        self.canvas_widget.status = 'translate'
+        self.statusBar().showMessage('平移选中图元')
+    
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    #print(dir(QGraphicsScene))
     mw = MainWindow()
     mw.show()
     app.exec_()
