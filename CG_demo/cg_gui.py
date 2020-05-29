@@ -30,8 +30,12 @@ def if_close(pos0, pos1):
 
 global g_penColor #used when set pencolor
 g_penColor = QColor(0,0,0) #black
+# size of canvas
 global g_width, g_height
 g_width = g_height = 600
+# if the last item is over
+global g_draw_finish
+g_draw_finish = 1
 
 class MyCanvas(QGraphicsView):
     """
@@ -64,32 +68,34 @@ class MyCanvas(QGraphicsView):
         self.temp_algorithm = ''
         self.temp_id = '-1'
         self.temp_item = MyItem(self.temp_id, 'noneType', \
-                                    [[0, 0], [0, 0]], 'noneAlg')       
+                                    [[0, 0], [0, 0]], 'noneAlg')      
+        global g_draw_finish
+        g_draw_finish = 1
     
-    def start_draw_line(self, algorithm, item_id):
-        self.status = 'line'
+    def start_draw(self, status, algorithm):
+        self.check_finish()
+        global g_draw_finish
+        g_draw_finish = 0
+        self.status = status
         self.temp_algorithm = algorithm
-        self.temp_id = item_id
+        self.temp_id = self.main_window.get_id()
     
-    def start_draw_polygon(self, algorithm, item_id):
-        self.status = 'polygon'
-        self.temp_algorithm = algorithm
-        self.temp_id = item_id
-    
-    def start_draw_ellipse(self, algorithm, item_id):
-        self.status = 'ellipse'
-        self.temp_algorithm = algorithm
-        self.temp_id = item_id
-        
-    def start_draw_curve(self, algorithm, item_id):
-        self.status = 'curve'
-        self.temp_algorithm = algorithm
-        self.temp_id = item_id        
-        
     def finish_draw(self):
+        global g_draw_finish
+        g_draw_finish = 1
         self.main_window.id_inc()
         self.temp_id = self.main_window.get_id()
-
+        
+    def check_finish(self):
+        if g_draw_finish == 1:
+            return 
+        # finish the last item
+        if self.status == 'polygon':
+            # 多边形没画完就去干别的了
+            if self.temp_item.p_list[0] != self.temp_item.p_list[-1]:
+                self.temp_item.p_list.append(self.temp_item.p_list[0])
+        self.finish_draw()
+        
     def clear_selection(self):
         if self.selected_id != '':
             self.item_dict[self.selected_id].selected = False
@@ -129,6 +135,7 @@ class MyCanvas(QGraphicsView):
             else:
                 self.temp_item.p_list.insert(-1, [x,y])            
         self.updateScene([self.sceneRect()])
+        #self.updateScene([self.temp_item.boundingRect()])
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
@@ -146,6 +153,7 @@ class MyCanvas(QGraphicsView):
             else:
                 self.temp_item.p_list[-2] = [x, y]
         self.updateScene([self.sceneRect()])
+        #self.updateScene([self.temp_item.boundingRect()])
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
@@ -165,6 +173,11 @@ class MyCanvas(QGraphicsView):
                 self.temp_item.p_list[-1] = self.temp_item.p_list[0]
                 self.finish_draw()
                 self.updateScene([self.sceneRect()])
+        elif self.status == 'curve':
+            if self.temp_id not in self.item_dict:
+            #add into item_dict
+                self.item_dict[self.temp_id] = self.temp_item
+                self.list_widget.addItem(self.temp_id)          
         super().mouseReleaseEvent(event)
 
 
@@ -174,7 +187,6 @@ class MyItem(QGraphicsItem):
     """
     def __init__(self, item_id: str, item_type: str, p_list: list, algorithm: str = '', parent: QGraphicsItem = None):
         """
-
         :param item_id: 图元ID
         :param item_type: 图元类型，'line'、'polygon'、'ellipse'、'curve'等
         :param p_list: 图元参数
@@ -198,9 +210,6 @@ class MyItem(QGraphicsItem):
         if self.item_type == 'line':
             item_pixels = alg.draw_line(self.p_list, self.algorithm)
         elif self.item_type == 'polygon':
-            # 也许多边形还没画完闭合就做别的了,这时要补上最后一条边
-            if self.p_list[0] != self.p_list[-1]:
-                self.p_list.append(self.p_list[0])
             # 画边
             for i in range(0,len(self.p_list)-1):
                 item_pixels.extend(alg.draw_line([self.p_list[i],\
@@ -272,7 +281,7 @@ class MainWindow(QMainWindow):
         exit_act = file_menu.addAction('退出')
         draw_menu = menubar.addMenu('绘制')
         line_menu = draw_menu.addMenu('线段')
-        line_naive_act = line_menu.addAction('Naive')
+        #line_naive_act = line_menu.addAction('Naive')
         line_dda_act = line_menu.addAction('DDA')
         line_bresenham_act = line_menu.addAction('Bresenham')
         polygon_menu = draw_menu.addMenu('多边形')
@@ -300,7 +309,7 @@ class MainWindow(QMainWindow):
         # 退出
         exit_act.triggered.connect(qApp.quit)
         # line
-        line_naive_act.triggered.connect(self.line_naive_action)
+        #line_naive_act.triggered.connect(self.line_naive_action)
         line_dda_act.triggered.connect(self.line_dda_action)
         line_bresenham_act.triggered.connect(self.line_bresenham_action)
         # polygon
@@ -380,47 +389,50 @@ class MainWindow(QMainWindow):
         global g_penColor
         color = QColorDialog.getColor()
         g_penColor = color
-        
+    
+    """    
     #绘制线段
     def line_naive_action(self):
         self.canvas_widget.start_draw_line('Naive', self.get_id())
         self.statusBar().showMessage('Naive算法绘制线段')
         self.list_widget.clearSelection()
         self.canvas_widget.clear_selection()   
+    """
+    
     #DDA绘制线段    
     def line_dda_action(self):
-        self.canvas_widget.start_draw_line('DDA', self.get_id())
+        self.canvas_widget.start_draw('line', 'DDA')
         self.statusBar().showMessage('DDA算法绘制线段')
         self.list_widget.clearSelection()
         self.canvas_widget.clear_selection() 
         
     #Bresenham绘制线段
     def line_bresenham_action(self):
-        self.canvas_widget.start_draw_line('Bresenham', self.get_id())
+        self.canvas_widget.start_draw('line','Bresenham')
         self.statusBar().showMessage('Bresenham算法绘制线段')
         self.list_widget.clearSelection()
         self.canvas_widget.clear_selection()
     
     def polygon_bresenham_action(self):
-        self.canvas_widget.start_draw_polygon('Bresenham', self.get_id())
+        self.canvas_widget.start_draw('polygon','Bresenham')
         self.statusBar().showMessage('Bresenham算法绘制多边形')
         self.list_widget.clearSelection()
         self.canvas_widget.clear_selection()
         
     def polygon_dda_action(self):
-        self.canvas_widget.start_draw_polygon('DDA', self.get_id())
+        self.canvas_widget.start_draw('polygon','DDA')
         self.statusBar().showMessage('DDA算法绘制多边形')
         self.list_widget.clearSelection()
         self.canvas_widget.clear_selection()
     
     def ellipse_action(self):
-        self.canvas_widget.start_draw_ellipse('default', self.get_id())
+        self.canvas_widget.start_draw('ellipse','default')
         self.statusBar().showMessage('绘制椭圆')
         self.list_widget.clearSelection()
         self.canvas_widget.clear_selection()      
         
     def curve_bezier_action(self):
-        self.canvas_widget.start_draw_curve('Bezier', self.get_id())
+        self.canvas_widget.start_draw('curve','Bezier')
         self.statusBar().showMessage('Bezier算法绘制曲线')
         self.list_widget.clearSelection()
         self.canvas_widget.clear_selection()        

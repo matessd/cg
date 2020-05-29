@@ -172,6 +172,7 @@ def Bezier_curve(p_list):
     Qcurve = [p_list[0]]
     Rcurve = [p_list[-1]]
     posList = p_list[:]
+    # 平分曲线, 然后求出两段曲线的控制点
     for i in range(1, n+1):
         for j in range(n_dec):
             xt = 0.5*posList[j][0] + 0.5*posList[j+1][0]
@@ -185,11 +186,12 @@ def Bezier_curve(p_list):
     # R curve gen vertex in opposite direction
     Rcurve.reverse()
     result = []
-    if max([poi_to_line_dis(poi, [Qcurve[0],Qcurve[-1]]) for poi in Qcurve]) <= 0.005:
+    # 得到两段曲线的像素点
+    if max([poi_to_line_dis(poi, [Qcurve[0],Qcurve[-1]]) for poi in Qcurve]) <= 0.01:
         result.extend(Qcurve)
     else:
         result.extend(Bezier_curve(Qcurve))
-    if max([poi_to_line_dis(poi, [Rcurve[0],Rcurve[-1]]) for poi in Rcurve]) <= 0.005:
+    if max([poi_to_line_dis(poi, [Rcurve[0],Rcurve[-1]]) for poi in Rcurve]) <= 0.01:
         result.extend(Rcurve)
     else:
         result.extend(Bezier_curve(Rcurve))
@@ -204,20 +206,7 @@ def draw_curve(p_list, algorithm):
     """
     result = []
     if algorithm == 'Bezier':
-        result_t = Bezier_curve(p_list)
-        vertex = []
-        for poi in result_t:
-            x = int(poi[0])
-            y = int(poi[1])
-            if([x, y] not in vertex):
-                vertex.append([x, y])
-        le = len(vertex)
-        #return vertex
-        for i in range(le-1):
-            pixels = draw_line(vertex[i:i+2], 'Bresenham')
-            result.extend(pixels)
-        return result
-        """
+        """ 注释掉的是直接计算步长的绘制方法,会很卡
         # P0
         result1 = []
         result1.append(p_list[0])
@@ -257,6 +246,19 @@ def draw_curve(p_list, algorithm):
             pixels = draw_line(result1[i:i+2], 'Bresenham')
             result.extend(pixels)
         """
+        result_t = Bezier_curve(p_list)
+        vertex = []
+        # 
+        for poi in result_t:
+            x = int(poi[0])
+            y = int(poi[1])
+            vertex.append([x, y])
+        le = len(vertex)
+        #return vertex
+        for i in range(le-1):
+            pixels = draw_line(vertex[i:i+2], 'Bresenham')
+            result.extend(pixels)
+        return result
     elif algorithm == 'B-spline':
         pass
     return result
