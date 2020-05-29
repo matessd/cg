@@ -67,7 +67,7 @@ def draw_line(p_list, algorithm):
         e_ = 2*dy - dx
         for i in range(1, dx+1):
             result.append((x,y))
-            #这里的while能否去掉??
+            #这里的while能否去掉?
             while(e_>0):
                 if(Interchange==1):
                     x = x + s1
@@ -161,7 +161,49 @@ def draw_curve(p_list, algorithm):
     :param algorithm: (string) 绘制使用的算法，包括'Bezier'和'B-spline'（三次均匀B样条曲线，曲线不必经过首末控制点）
     :return: (list of list of int: [[x_0, y_0], [x_1, y_1], [x_2, y_2], ...]) 绘制结果的像素点坐标列表
     """
-    pass
+    result = []
+    if algorithm == 'Bezier':
+        # P0
+        result1 = []
+        result1.append(p_list[0])
+        le = len(p_list)
+        
+        # compute interval 
+        distance = 0
+        for i in range(le-1):
+            xd = abs(p_list[i][0] - p_list[i+1][0])
+            yd = abs(p_list[i][1] - p_list[i+1][1])
+            distance = distance + max(xd, yd)
+        interval = 0.05/distance
+        #print(0.05/le)
+        #print(interval)
+        
+        t = interval
+        while t<=1:
+            posList = p_list[:]
+            le_dec = le
+            for i in range(le-1):
+                j = 0
+                while j<le_dec-1:
+                    xt = (1-t)*posList[j][0] + t*posList[j+1][0]
+                    yt = (1-t)*posList[j][1] + t*posList[j+1][1]
+                    posList[j] = [xt,yt]
+                    j = j+1
+                le_dec = le_dec - 1 
+            x = int(posList[0][0])
+            y = int(posList[0][1])
+            if result1[-1] != [x,y]:
+                result1.append([x,y])
+            t += interval
+        # because t is float, t=1 may not appear
+        if result1[-1] != p_list[-1]:
+            result1.append(p_list[-1])
+        for i in range(len(result1)-1):
+            pixels = draw_line(result1[i:i+2], 'Bresenham')
+            result.extend(pixels)
+    elif algorithm == 'B-spline':
+        pass
+    return result
 
 
 def translate(p_list, dx, dy):
