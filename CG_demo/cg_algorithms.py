@@ -3,7 +3,7 @@
 
 # 本文件只允许依赖math库
 import math
-import numpy as np
+# import numpy as np
 
 def Sign(x):
     if x<0:
@@ -263,12 +263,22 @@ def draw_curve(p_list, algorithm):
         # call plot
         plot(result)
     elif algorithm == 'B-spline':
-        k = 4 # 阶数
         n = len(p_list)-1 # 顶点的个数-1
-        T = np.linspace(1,10,n+k+1) # T 范围1到10，均匀B样条曲线
+        # assign k, k是阶数, k-1是次数
+        k = 4 # 4阶
+        if k>n+1:
+            k = n+1
+        def linspace(start, stop, num):
+            result = []
+            step = (stop - start)/num
+            for i in range(num):
+                result.append(start+i*step)
+            return result
+        T = linspace(1,10,n+k+1) # T 范围1到10，均匀B样条曲线
+        print(len(T),n+k+1)
         # if n >= k-1:
         #     T = [1]*k+(np.linspace(2,9,n-k+1)).tolist()+[10]*k # 准均匀样条
-        x,y = [],[]
+
         # 递推公式
         # def de_Boor(r,t,i):
         #     if r == 0:
@@ -284,7 +294,7 @@ def draw_curve(p_list, algorithm):
                     return ((T[i+k-r]-t)/(T[i+k-r]-T[i]))*de_Boor_x(r-1,t,i-1)
                 elif T[i+k-r]-t == 0 and T[i+k-r]-T[i] != 0:
                     return ((t-T[i])/(T[i+k-r]-T[i]))*de_Boor_x(r-1,t,i)
-                elif t-T[i] == 0 and T[i+k-r]-t == 0:
+                elif T[i+k-r]-T[i] == 0:
                     return 0
                 return ((t-T[i])/(T[i+k-r]-T[i]))*de_Boor_x(r-1,t,i)\
                     +((T[i+k-r]-t)/(T[i+k-r]-T[i]))*de_Boor_x(r-1,t,i-1)
@@ -301,9 +311,17 @@ def draw_curve(p_list, algorithm):
                 return ((t-T[i])/(T[i+k-r]-T[i]))*de_Boor_y(r-1,t,i)\
                     +((T[i+k-r]-t)/(T[i+k-r]-T[i]))*de_Boor_y(r-1,t,i-1)
         def plot(posList):
+            vertex = []
             for j in range(k-1,n+1):
-                for t in np.linspace(T[j],T[j+1]):
-                    posList.append([de_Boor_x(k-1,t,j),de_Boor_y(k-1,t,j)])
+                for t in linspace(T[j],T[j+1],30):
+                    if t==T[j] or t==T[j+1]:
+                        continue
+                    vertex.append([int(de_Boor_x(k-1,t,j)),int(de_Boor_y(k-1,t,j))])
+            le = len(vertex)
+            #return vertex
+            for i in range(le-1):
+                pixels = draw_line(vertex[i:i+2], 'Bresenham')
+                result.extend(pixels)
         if n >= k-1:
             plot(result)
     return result

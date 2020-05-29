@@ -85,6 +85,7 @@ class MyCanvas(QGraphicsView):
             # 多边形没画完就去干别的了
             if self.temp_item.p_list[0] != self.temp_item.p_list[-1]:
                 self.temp_item.p_list.append(self.temp_item.p_list[0])
+                self.updateScene([self.sceneRect()])
         self.finish_draw()
         
     def clear_selection(self):
@@ -124,7 +125,10 @@ class MyCanvas(QGraphicsView):
                                         [[x, y], [x, y]], self.temp_algorithm)
                 self.scene().addItem(self.temp_item)          
             else:
-                self.temp_item.p_list.insert(-1, [x,y])            
+                if self.temp_algorithm == 'B-spline':
+                    self.temp_item.p_list.append([x,y])   
+                else :
+                    self.temp_item.p_list.insert(-1, [x,y])            
         self.updateScene([self.sceneRect()])
         #self.updateScene([self.temp_item.boundingRect()])
         super().mousePressEvent(event)
@@ -139,10 +143,13 @@ class MyCanvas(QGraphicsView):
             self.temp_item.p_list[-1] = [x, y]
         elif self.status == 'curve':
             le = len(self.temp_item.p_list)
-            if le <= 2: 
+            if self.temp_algorithm == 'B-spline':
                 self.temp_item.p_list[-1] = [x, y]
             else:
-                self.temp_item.p_list[-2] = [x, y]
+                if le <= 2: 
+                    self.temp_item.p_list[-1] = [x, y]
+                else:
+                    self.temp_item.p_list[-2] = [x, y]
         self.updateScene([self.sceneRect()])
         #self.updateScene([self.temp_item.boundingRect()])
         super().mouseMoveEvent(event)
@@ -357,6 +364,9 @@ class MainWindow(QMainWindow):
     
     #保存画布
     def save_canvas(self):
+        # 令前一个没完成图形完成
+        self.canvas_widget.check_finish()
+        
         fname = QFileDialog.getSaveFileName(self, 'Save file',\
                                         '/home/output/default','Image files (*.bmp)')        
         #cancel save
@@ -391,6 +401,8 @@ class MainWindow(QMainWindow):
         global g_penColor
         color = QColorDialog.getColor()
         g_penColor = color
+        # 设置画笔颜色也会令前一个没完成图形完成
+        self.canvas_widget.check_finish()
     
     """    
     #绘制线段
