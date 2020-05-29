@@ -19,8 +19,11 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QPainter, QMouseEvent, QColor, QPixmap
 from PyQt5.QtCore import QRectF
 
-def if_close(x0, x1):
-    if abs(x0-x1)<=5:
+def if_close(pos0, pos1):
+    """
+    判断两个点是否足够近,用于多边形的闭合
+    """
+    if abs(pos0[0]-pos1[0])<=5 and abs(pos0[1]-pos1[1])<=5:
         return True
     else :
         return False
@@ -78,6 +81,11 @@ class MyCanvas(QGraphicsView):
         self.temp_algorithm = algorithm
         self.temp_id = item_id
         
+    def start_draw_curve(self, algorithm, item_id):
+        self.status = 'curve'
+        self.temp_algorithm = algorithm
+        self.temp_id = item_id        
+        
     def finish_draw(self):
         self.main_window.id_inc()
         self.temp_id = self.main_window.get_id()
@@ -113,6 +121,13 @@ class MyCanvas(QGraphicsView):
                 self.scene().addItem(self.temp_item)          
             else:
                 self.temp_item.p_list.append([x,y])
+        elif self.status == 'curve':
+            if self.temp_item.id != self.main_window.get_id():
+                self.temp_item = MyItem(self.temp_id, self.status, \
+                                        [[x, y], [x, y]], self.temp_algorithm)
+                self.scene().addItem(self.temp_item)          
+            else:
+                self.temp_item.p_list.insert(-1, [x,y])            
         self.updateScene([self.sceneRect()])
         super().mousePressEvent(event)
 
@@ -124,6 +139,12 @@ class MyCanvas(QGraphicsView):
             self.temp_item.p_list[1] = [x, y]
         elif self.status == 'polygon':
             self.temp_item.p_list[-1] = [x, y]
+        elif self.status == 'curve':
+            le = len(self.temp_item.p_list)
+            if le <= 2: 
+                self.temp_item.p_list[-1] = [x, y]
+            else:
+                self.temp_item.p_list[-2] = [x, y]
         self.updateScene([self.sceneRect()])
         super().mouseMoveEvent(event)
 
@@ -138,10 +159,9 @@ class MyCanvas(QGraphicsView):
                 self.item_dict[self.temp_id] = self.temp_item
                 self.list_widget.addItem(self.temp_id)
             elif len(self.temp_item.p_list)>=4 and\
-                if_close(self.temp_item.p_list[0][0], self.temp_item.p_list[-1][0]) and\
-                if_close(self.temp_item.p_list[0][1], self.temp_item.p_list[-1][1]):
+                if_close(self.temp_item.p_list[0], self.temp_item.p_list[-1]):
             #finish draw polygon
-                #[-1] and [0] refer to the same object
+                #[-1] and [0] refer to the same vertex
                 self.temp_item.p_list[-1] = self.temp_item.p_list[0]
                 self.finish_draw()
                 self.updateScene([self.sceneRect()])
@@ -178,13 +198,17 @@ class MyItem(QGraphicsItem):
         if self.item_type == 'line':
             item_pixels = alg.draw_line(self.p_list, self.algorithm)
         elif self.item_type == 'polygon':
+            # 也许多边形还没画完闭合就做别的了,这时要补上最后一条边
+            if self.p_list[0] != self.p_list[-1]:
+                self.p_list.append(self.p_list[0])
+            # 画边
             for i in range(0,len(self.p_list)-1):
                 item_pixels.extend(alg.draw_line([self.p_list[i],\
                             self.p_list[i+1]], self.algorithm))
         elif self.item_type == 'ellipse':
             item_pixels = alg.draw_ellipse(self.p_list)
         elif self.item_type == 'curve':
-            pass
+            item_pixels = alg.draw_curve(self.p_list, self.algorithm)
         #draw
         for p in item_pixels:
             painter.drawPoint(*p)
@@ -202,7 +226,7 @@ class MyItem(QGraphicsItem):
             y = min(y0, y1)
             w = max(x0, x1) - x
             h = max(y0, y1) - y
-        elif self.item_type == 'polygon':
+        elif self.item_type == 'polygon' or self.item_type == 'curve':
             x, y = self.p_list[0]
             w, h = self.p_list[0]
             for i in range(len(self.p_list)):
@@ -216,8 +240,6 @@ class MyItem(QGraphicsItem):
                     h = self.p_list[i][1]
             w = w-x
             h = h-y
-        elif self.item_type == 'curve':
-            pass
         return QRectF(x - 1, y - 1, w + 2, h + 2)
 
 class MainWindow(QMainWindow):
@@ -286,6 +308,8 @@ class MainWindow(QMainWindow):
         polygon_bresenham_act.triggered.connect(self.polygon_bresenham_action)
         # ellipse
         ellipse_act.triggered.connect(self.ellipse_action)
+        # curve
+        curve_bezier_act.triggered.connect(self.curve_bezier_action)
         
         self.list_widget.currentTextChanged.connect(self.canvas_widget.selection_changed)
 
@@ -392,6 +416,12 @@ class MainWindow(QMainWindow):
     def ellipse_action(self):
         self.canvas_widget.start_draw_ellipse('default', self.get_id())
         self.statusBar().showMessage('绘制椭圆')
+        self.list_widget.clearSelection()
+        self.canvas_widget.clear_selection()      
+        
+    def curve_bezier_action(self):
+        self.canvas_widget.start_draw_curve('Bezier', self.get_id())
+        self.statusBar().showMessage('Bezier算法绘制曲线')
         self.list_widget.clearSelection()
         self.canvas_widget.clear_selection()        
     

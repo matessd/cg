@@ -11,6 +11,16 @@ def Sign(x):
         return 0
     else :
         return 1
+    
+def poi_to_line_dis(poi, line):
+    """计算点到直线的距离, 用于bezier曲线二分逼近时判断误差
+    """
+    if line[0][0]==line[1][0] and line[0][1]==line[1][1]:
+        return math.sqrt( (poi[0]-line[0][0])**2 + (poi[1]-line[0][1])**2 )
+    a = line[1][1] - line[0][1]
+    b = line[0][0] - line[1][0]
+    c = (line[1][0] - line[0][0])*line[0][1] - (line[1][1] - line[0][1])*line[0][0]
+    return abs((a*poi[0] + b*poi[1] + c)/math.sqrt(a*a + b*b))
 
 def draw_line(p_list, algorithm):
     """绘制线段
@@ -153,6 +163,37 @@ def draw_ellipse(p_list):
         y = y-1
     return result
 
+def Bezier_curve(p_list):
+    """为了确保精度,额外弄出来的递归函数
+    通过不断二分逼近曲线,返回的是浮点数形式的坐标
+    """
+    n = len(p_list) - 1
+    n_dec = n
+    Qcurve = [p_list[0]]
+    Rcurve = [p_list[-1]]
+    posList = p_list[:]
+    for i in range(1, n+1):
+        for j in range(n_dec):
+            xt = 0.5*posList[j][0] + 0.5*posList[j+1][0]
+            yt = 0.5*posList[j][1] + 0.5*posList[j+1][1]
+            posList[j] = [xt,yt]
+            if j == 0:
+                Qcurve.append([xt, yt])
+            if (i+j) == n:
+                Rcurve.append([xt, yt])
+        n_dec = n_dec - 1
+    # R curve gen vertex in opposite direction
+    Rcurve.reverse()
+    result = []
+    if max([poi_to_line_dis(poi, [Qcurve[0],Qcurve[-1]]) for poi in Qcurve]) <= 0.005:
+        result.extend(Qcurve)
+    else:
+        result.extend(Bezier_curve(Qcurve))
+    if max([poi_to_line_dis(poi, [Rcurve[0],Rcurve[-1]]) for poi in Rcurve]) <= 0.005:
+        result.extend(Rcurve)
+    else:
+        result.extend(Bezier_curve(Rcurve))
+    return result
 
 def draw_curve(p_list, algorithm):
     """绘制曲线
@@ -163,18 +204,32 @@ def draw_curve(p_list, algorithm):
     """
     result = []
     if algorithm == 'Bezier':
+        result_t = Bezier_curve(p_list)
+        vertex = []
+        for poi in result_t:
+            x = int(poi[0])
+            y = int(poi[1])
+            if([x, y] not in vertex):
+                vertex.append([x, y])
+        le = len(vertex)
+        #return vertex
+        for i in range(le-1):
+            pixels = draw_line(vertex[i:i+2], 'Bresenham')
+            result.extend(pixels)
+        return result
+        """
         # P0
         result1 = []
         result1.append(p_list[0])
         le = len(p_list)
         
         # compute interval 
-        distance = 0
+        distance = 1
         for i in range(le-1):
             xd = abs(p_list[i][0] - p_list[i+1][0])
             yd = abs(p_list[i][1] - p_list[i+1][1])
             distance = distance + max(xd, yd)
-        interval = 0.05/distance
+        interval = 0.001
         #print(0.05/le)
         #print(interval)
         
@@ -201,6 +256,7 @@ def draw_curve(p_list, algorithm):
         for i in range(len(result1)-1):
             pixels = draw_line(result1[i:i+2], 'Bresenham')
             result.extend(pixels)
+        """
     elif algorithm == 'B-spline':
         pass
     return result
