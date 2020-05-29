@@ -19,15 +19,6 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QPainter, QMouseEvent, QColor, QPixmap
 from PyQt5.QtCore import QRectF
 
-def if_close(pos0, pos1):
-    """
-    判断两个点是否足够近,用于多边形的闭合
-    """
-    if abs(pos0[0]-pos1[0])<=5 and abs(pos0[1]-pos1[1])<=5:
-        return True
-    else :
-        return False
-
 global g_penColor #used when set pencolor
 g_penColor = QColor(0,0,0) #black
 # size of canvas
@@ -157,6 +148,16 @@ class MyCanvas(QGraphicsView):
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
+        def if_close(pos0, pos1):
+            """
+            判断两个点是否足够近,用于多边形的闭合
+            """
+            if abs(pos0[0]-pos1[0])<=5 and abs(pos0[1]-pos1[1])<=5:
+                return True
+            else :
+                return False
+        
+        # main
         if self.status == 'line' or self.status == 'ellipse':
             self.item_dict[self.temp_id] = self.temp_item
             self.list_widget.addItem(self.temp_id)
@@ -319,6 +320,7 @@ class MainWindow(QMainWindow):
         ellipse_act.triggered.connect(self.ellipse_action)
         # curve
         curve_bezier_act.triggered.connect(self.curve_bezier_action)
+        curve_b_spline_act.triggered.connect(self.curve_b_spline_action)
         
         self.list_widget.currentTextChanged.connect(self.canvas_widget.selection_changed)
 
@@ -435,7 +437,13 @@ class MainWindow(QMainWindow):
         self.canvas_widget.start_draw('curve','Bezier')
         self.statusBar().showMessage('Bezier算法绘制曲线')
         self.list_widget.clearSelection()
-        self.canvas_widget.clear_selection()        
+        self.canvas_widget.clear_selection()       
+        
+    def curve_b_spline_action(self):
+        self.canvas_widget.start_draw('curve','B-spline')
+        self.statusBar().showMessage('B_spline算法绘制曲线')
+        self.list_widget.clearSelection()
+        self.canvas_widget.clear_selection() 
     
 if __name__ == '__main__':
     app = QApplication(sys.argv)

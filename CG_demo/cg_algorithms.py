@@ -3,6 +3,7 @@
 
 # 本文件只允许依赖math库
 import math
+import numpy as np
 
 def Sign(x):
     if x<0:
@@ -11,16 +12,6 @@ def Sign(x):
         return 0
     else :
         return 1
-    
-def poi_to_line_dis(poi, line):
-    """计算点到直线的距离, 用于bezier曲线二分逼近时判断误差
-    """
-    if line[0][0]==line[1][0] and line[0][1]==line[1][1]:
-        return math.sqrt( (poi[0]-line[0][0])**2 + (poi[1]-line[0][1])**2 )
-    a = line[1][1] - line[0][1]
-    b = line[0][0] - line[1][0]
-    c = (line[1][0] - line[0][0])*line[0][1] - (line[1][1] - line[0][1])*line[0][0]
-    return abs((a*poi[0] + b*poi[1] + c)/math.sqrt(a*a + b*b))
 
 def draw_line(p_list, algorithm):
     """绘制线段
@@ -163,40 +154,6 @@ def draw_ellipse(p_list):
         y = y-1
     return result
 
-def Bezier_curve(p_list):
-    """为了确保精度,额外弄出来的递归函数
-    通过不断二分逼近曲线,返回的是浮点数形式的坐标
-    """
-    n = len(p_list) - 1
-    n_dec = n
-    Qcurve = [p_list[0]]
-    Rcurve = [p_list[-1]]
-    posList = p_list[:]
-    # 平分曲线, 然后求出两段曲线的控制点
-    for i in range(1, n+1):
-        for j in range(n_dec):
-            xt = 0.5*posList[j][0] + 0.5*posList[j+1][0]
-            yt = 0.5*posList[j][1] + 0.5*posList[j+1][1]
-            posList[j] = [xt,yt]
-            if j == 0:
-                Qcurve.append([xt, yt])
-            if (i+j) == n:
-                Rcurve.append([xt, yt])
-        n_dec = n_dec - 1
-    # R curve gen vertex in opposite direction
-    Rcurve.reverse()
-    result = []
-    # 得到两段曲线的像素点
-    if max([poi_to_line_dis(poi, [Qcurve[0],Qcurve[-1]]) for poi in Qcurve]) <= 0.01:
-        result.extend(Qcurve)
-    else:
-        result.extend(Bezier_curve(Qcurve))
-    if max([poi_to_line_dis(poi, [Rcurve[0],Rcurve[-1]]) for poi in Rcurve]) <= 0.01:
-        result.extend(Rcurve)
-    else:
-        result.extend(Bezier_curve(Rcurve))
-    return result
-
 def draw_curve(p_list, algorithm):
     """绘制曲线
 
@@ -246,21 +203,109 @@ def draw_curve(p_list, algorithm):
             pixels = draw_line(result1[i:i+2], 'Bresenham')
             result.extend(pixels)
         """
-        result_t = Bezier_curve(p_list)
-        vertex = []
-        # 
-        for poi in result_t:
-            x = int(poi[0])
-            y = int(poi[1])
-            vertex.append([x, y])
-        le = len(vertex)
-        #return vertex
-        for i in range(le-1):
-            pixels = draw_line(vertex[i:i+2], 'Bresenham')
-            result.extend(pixels)
-        return result
+        def poi_to_line_dis(poi, line):
+            """计算点到直线的距离, 用于bezier曲线二分逼近时判断误差
+            """
+            if line[0][0]==line[1][0] and line[0][1]==line[1][1]:
+                return math.sqrt( (poi[0]-line[0][0])**2 + (poi[1]-line[0][1])**2 )
+            a = line[1][1] - line[0][1]
+            b = line[0][0] - line[1][0]
+            c = (line[1][0] - line[0][0])*line[0][1] - (line[1][1] - line[0][1])*line[0][0]
+            return abs((a*poi[0] + b*poi[1] + c)/math.sqrt(a*a + b*b))
+        
+        def Bezier_curve(p_list):
+            """为了确保精度,额外弄出来的递归函数
+            通过不断二分逼近曲线,返回的是浮点数形式的坐标
+            """
+            n = len(p_list) - 1
+            n_dec = n
+            Qcurve = [p_list[0]]
+            Rcurve = [p_list[-1]]
+            posList = p_list[:]
+            # 平分曲线, 然后求出两段曲线的控制点
+            for i in range(1, n+1):
+                for j in range(n_dec):
+                    xt = 0.5*posList[j][0] + 0.5*posList[j+1][0]
+                    yt = 0.5*posList[j][1] + 0.5*posList[j+1][1]
+                    posList[j] = [xt,yt]
+                    if j == 0:
+                        Qcurve.append([xt, yt])
+                    if (i+j) == n:
+                        Rcurve.append([xt, yt])
+                n_dec = n_dec - 1
+            # R curve gen vertex in opposite direction
+            Rcurve.reverse()
+            result = []
+            # 得到两段曲线的像素点
+            if max([poi_to_line_dis(poi, [Qcurve[0],Qcurve[-1]]) for poi in Qcurve]) <= 0.01:
+                result.extend(Qcurve)
+            else:
+                result.extend(Bezier_curve(Qcurve))
+            if max([poi_to_line_dis(poi, [Rcurve[0],Rcurve[-1]]) for poi in Rcurve]) <= 0.01:
+                result.extend(Rcurve)
+            else:
+                result.extend(Bezier_curve(Rcurve))
+            return result
+
+        def plot(result):
+            result_t = Bezier_curve(p_list)
+            vertex = []
+            # 
+            for poi in result_t:
+                x = int(poi[0])
+                y = int(poi[1])
+                vertex.append([x, y])
+            le = len(vertex)
+            #return vertex
+            for i in range(le-1):
+                pixels = draw_line(vertex[i:i+2], 'Bresenham')
+                result.extend(pixels)
+        # call plot
+        plot(result)
     elif algorithm == 'B-spline':
-        pass
+        k = 4 # 阶数
+        n = len(p_list)-1 # 顶点的个数-1
+        T = np.linspace(1,10,n+k+1) # T 范围1到10，均匀B样条曲线
+        # if n >= k-1:
+        #     T = [1]*k+(np.linspace(2,9,n-k+1)).tolist()+[10]*k # 准均匀样条
+        x,y = [],[]
+        # 递推公式
+        # def de_Boor(r,t,i):
+        #     if r == 0:
+        #         return [args[0][i],args[1][i]]
+        #     else:
+        #         return ((t-T[i])/(T[i+k-r]-T[i]))*de_Boor(r-1,t,i)\
+        #               +((T[i+k-r]-t)/(T[i+k-r]-T[i]))*de_Boor(r-1,t,i-1)
+        def de_Boor_x(r,t,i):
+            if r == 0:
+                return p_list[i][0]
+            else:
+                if t-T[i] == 0 and T[i+k-r]- T[i]!= 0:
+                    return ((T[i+k-r]-t)/(T[i+k-r]-T[i]))*de_Boor_x(r-1,t,i-1)
+                elif T[i+k-r]-t == 0 and T[i+k-r]-T[i] != 0:
+                    return ((t-T[i])/(T[i+k-r]-T[i]))*de_Boor_x(r-1,t,i)
+                elif t-T[i] == 0 and T[i+k-r]-t == 0:
+                    return 0
+                return ((t-T[i])/(T[i+k-r]-T[i]))*de_Boor_x(r-1,t,i)\
+                    +((T[i+k-r]-t)/(T[i+k-r]-T[i]))*de_Boor_x(r-1,t,i-1)
+        def de_Boor_y(r,t,i):
+            if r == 0:
+                return p_list[i][1]
+            else:
+                if t-T[i] == 0 and T[i+k-r]- T[i]!= 0:
+                    return ((T[i+k-r]-t)/(T[i+k-r]-T[i]))*de_Boor_x(r-1,t,i-1)
+                elif T[i+k-r]-t == 0 and T[i+k-r]-T[i] != 0:
+                    return ((t-T[i])/(T[i+k-r]-T[i]))*de_Boor_x(r-1,t,i)
+                elif t-T[i] == 0 and T[i+k-r]-t == 0:
+                    return 0
+                return ((t-T[i])/(T[i+k-r]-T[i]))*de_Boor_y(r-1,t,i)\
+                    +((T[i+k-r]-t)/(T[i+k-r]-T[i]))*de_Boor_y(r-1,t,i-1)
+        def plot(posList):
+            for j in range(k-1,n+1):
+                for t in np.linspace(T[j],T[j+1]):
+                    posList.append([de_Boor_x(k-1,t,j),de_Boor_y(k-1,t,j)])
+        if n >= k-1:
+            plot(result)
     return result
 
 
