@@ -294,9 +294,9 @@ class MyItem(QGraphicsItem):
     
     def compute_center(self):
         x,y,w,h = self.compute_region()
-        midx = (x+w)/2
-        midy = (y+h)/2
-        return [int(midx),int(midy)]
+        midx = (x+w)//2
+        midy = (y+h)//2
+        return [midx,midy]
 
 class MainWindow(QMainWindow):
     """
