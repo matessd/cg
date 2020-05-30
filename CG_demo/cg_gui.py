@@ -3,6 +3,7 @@
 
 import sys
 import cg_algorithms as alg
+import math
 from typing import Optional
 from PyQt5.QtWidgets import (
     QApplication,
@@ -86,7 +87,7 @@ class MyCanvas(QGraphicsView):
             if self.temp_item.p_list[0] != self.temp_item.p_list[-1]:
                 self.temp_item.p_list.append(self.temp_item.p_list[0])
                 self.updateScene([self.sceneRect()])
-        self.finish_draw()        
+        self.finish_draw()
         
     def clear_selection(self):
         if self.selected_id != '':
@@ -105,7 +106,12 @@ class MyCanvas(QGraphicsView):
         self.item_dict[self.selected_id].update()
         self.status = ''
         self.updateScene([self.sceneRect()])
-
+        
+    def selectedItemClear(self):
+        if self.selected_id == '':
+            return
+        self.item_dict[self.selected_id].trans_clear()
+        
     def mousePressEvent(self, event: QMouseEvent) -> None:
         pos = self.mapToScene(event.localPos().toPoint())
         x = int(pos.x())
@@ -136,8 +142,25 @@ class MyCanvas(QGraphicsView):
                 return
             sid = self.selected_id
             self.item_dict[sid].trans_type = 'translate'
+            self.item_dict[sid].center = [x,y]
             self.item_dict[sid].poi = [x,y]
-            
+            self.item_dict[sid].trans_over = 0
+        elif self.status == 'rotate':
+            if self.selected_id == '':
+                return
+            sid = self.selected_id
+            if self.item_dict[sid].param_cnt == 0:
+                self.item_dict[sid].trans_type = 'rotate'
+                self.item_dict[sid].center = [x,y]
+                self.item_dict[sid].trans_over = 0
+                self.item_dict[sid].param_cnt = 1
+            elif self.item_dict[sid].param_cnt == 1:
+                self.item_dict[sid].poi = [x,y]
+                self.item_dict[sid].poi1 = [x,y]
+                self.item_dict[sid].param_cnt = 2
+            else:
+                # cannot appear this situation, clear
+                self.item_dict[sid].trans_clear()
         self.updateScene([self.sceneRect()])
         #self.updateScene([self.temp_item.boundingRect()])
         super().mousePressEvent(event)
@@ -164,8 +187,19 @@ class MyCanvas(QGraphicsView):
                 return
             sid = self.selected_id
             self.item_dict[sid].trans_type = 'translate'
-            self.item_dict[sid].poi = [x,y]            
-            
+            self.item_dict[sid].poi = [x,y]  
+            # self.item_dict[sid].trans_over = 0
+        elif self.status == 'rotate':
+            if self.selected_id == '':
+                return
+            sid = self.selected_id
+            if self.item_dict[sid].param_cnt == 1:
+                pass
+            elif self.item_dict[sid].param_cnt == 2:
+                self.item_dict[sid].poi1 = [x,y]                
+            else:
+                self.item_dict[sid].trans_clear()
+        
         self.updateScene([self.sceneRect()])
         #self.updateScene([self.temp_item.boundingRect()])
         super().mouseMoveEvent(event)
@@ -206,8 +240,21 @@ class MyCanvas(QGraphicsView):
             if self.selected_id == '':
                 return
             sid = self.selected_id
-            self.item_dict[sid].trans_type = ''
-            self.item_dict[sid].poi = [0,0]
+            # change item p_list
+            self.item_dict[sid].trans_over = 1
+            # updateScene是super()时执行的
+            self.updateScene([self.sceneRect()])
+        elif self.status == 'rotate':
+            if self.selected_id == '':
+                return
+            sid = self.selected_id
+            if self.item_dict[sid].param_cnt == 1:
+                pass
+            elif self.item_dict[sid].param_cnt == 2:
+                self.item_dict[sid].trans_over = 1               
+            else:
+                self.item_dict[sid].trans_clear()
+            self.updateScene([self.sceneRect()])
         super().mouseReleaseEvent(event)
 
 
@@ -233,70 +280,125 @@ class MyItem(QGraphicsItem):
         self.penColor = g_penColor  # 自己的penColor
         # for transformation
         self.trans_type = ''
-        self.poi = [0,0] # [x,y]
-
+        self.poi = [0,0] # [x,y] of move
+        self.center = [0,0] # [x,y] of center
+        self.trans_over = 0 # if the transformation operation over
+        self.param_cnt = 0 # some operation needs 2 mouse_press
+        
+    def trans_clear(self):
+        self.trans_type = ''
+        self.center = [0,0]
+        self.poi = [0,0]
+        self.trans_over = 0   
+        self.param_cnt = 0
+        
     #gui会在鼠标事件自动调用paint重新绘制所有图元
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: Optional[QWidget] = ...) -> None:
         painter.setPen(self.penColor)
         item_pixels = []
-        # transformation
+        def draw(p_list, algorithm):
+            # draw figure
+            result = []
+            if self.item_type == 'line':
+                result = alg.draw_line(p_list, algorithm)
+            elif self.item_type == 'polygon':
+                # 画边
+                for i in range(0,len(p_list)-1):
+                    result.extend(alg.draw_line([p_list[i],\
+                                p_list[i+1]], algorithm))
+            elif self.item_type == 'ellipse':
+                result = alg.draw_ellipse(p_list)
+            elif self.item_type == 'curve':
+                result = alg.draw_curve(p_list, algorithm)  
+            return result
+        
+        def angle(v1, v2):
+            """计算v2相对于v1的顺时针角度
+            v1 = [[x0,y0],[x1,y1]], v2同理
+            """
+            dx1 = v1[1][0] - v1[0][0]
+            dy1 = v1[1][1] - v1[0][1]
+            dx2 = v2[1][0] - v2[0][0]
+            dy2 = v2[1][1] - v2[0][1]
+            angle1 = math.atan2(dy1, dx1)
+            angle1 = int(angle1 * 180/math.pi)
+            angle2 = math.atan2(dy2, dx2)
+            angle2 = int(angle2 * 180/math.pi)
+            ret = angle2 - angle1
+            return ret
+        
+        # choose p_list accoring to trans_type
+        new_p_list = self.p_list
         if self.trans_type == 'translate':
-            center = self.compute_center()
-            alg.translate(self.p_list, self.poi[0]-center[0], self.poi[1]-center[1])
-        # draw figure
-        if self.item_type == 'line':
-            item_pixels = alg.draw_line(self.p_list, self.algorithm)
-        elif self.item_type == 'polygon':
-            # 画边
-            for i in range(0,len(self.p_list)-1):
-                item_pixels.extend(alg.draw_line([self.p_list[i],\
-                            self.p_list[i+1]], self.algorithm))
-        elif self.item_type == 'ellipse':
-            item_pixels = alg.draw_ellipse(self.p_list)
-        elif self.item_type == 'curve':
-            item_pixels = alg.draw_curve(self.p_list, self.algorithm)
-        #draw
+            new_p_list = alg.translate(self.p_list, self.poi[0]-self.center[0], \
+                                        self.poi[1]-self.center[1])
+            if self.trans_over == 1:
+                # clear
+                self.trans_clear()
+                # chang p_list
+                self.p_list = new_p_list
+        elif self.trans_type == 'rotate':
+            if self.item_type == 'ellipse':
+                print("Can't rotate ellipse")
+                return 
+            if self.param_cnt == 2:
+                theta = angle([self.center, self.poi], [self.center, self.poi1])
+                new_p_list = alg.rotate(self.p_list, \
+                                self.center[0], self.center[1], theta)
+            if self.trans_over == 1:
+                # clear
+                self.trans_clear()
+                # chang p_list
+                self.p_list = new_p_list        
+        item_pixels = draw(new_p_list, self.algorithm)
+        # draw
         for p in item_pixels:
             painter.drawPoint(*p)
+        # draw bound
         if self.selected:
             painter.setPen(QColor(255, 0, 0))
-            painter.drawRect(self.boundingRect())  
+            painter.drawRect(self.regionRect(new_p_list))  
     
     #绘制item时所需范围
     def boundingRect(self) -> QRectF:
-        x,y,w,h = self.compute_region()
+        x,y,w,h = self.compute_region(self.p_list)
         return QRectF(x - 1, y - 1, w + 2, h + 2)
     
-    def compute_region(self):
+    def regionRect(self, new_p_list) -> QRectF:
+        x,y,w,h = self.compute_region(new_p_list)
+        return QRectF(x - 1, y - 1, w + 2, h + 2)
+    
+    def compute_region(self, new_p_list):
         x,y,w,h = [0,0,0,0]
         if self.item_type == 'line' or self.item_type == 'ellipse':
-            x0, y0 = self.p_list[0]
-            x1, y1 = self.p_list[1]
+            x0, y0 = new_p_list[0]
+            x1, y1 = new_p_list[1]
             x = min(x0, x1)
             y = min(y0, y1)
             w = max(x0, x1) - x
             h = max(y0, y1) - y
         elif self.item_type == 'polygon' or self.item_type == 'curve':
-            x, y = self.p_list[0]
-            w, h = self.p_list[0]
-            for i in range(len(self.p_list)):
-                if x > self.p_list[i][0]:
-                    x = self.p_list[i][0]
-                if y > self.p_list[i][1]:
-                    y = self.p_list[i][1]
-                if w < self.p_list[i][0]:
-                    w = self.p_list[i][0]
-                if h < self.p_list[i][1]:
-                    h = self.p_list[i][1]
+            x, y = new_p_list[0]
+            w, h = new_p_list[0]
+            for i in range(len(new_p_list)):
+                if x > new_p_list[i][0]:
+                    x = new_p_list[i][0]
+                if y > new_p_list[i][1]:
+                    y = new_p_list[i][1]
+                if w < new_p_list[i][0]:
+                    w = new_p_list[i][0]
+                if h < new_p_list[i][1]:
+                    h = new_p_list[i][1]
             w = w-x
             h = h-y
         return [x,y,w,h]
-    
+    """
     def compute_center(self):
         x,y,w,h = self.compute_region()
         midx = (x+w)//2
         midy = (y+h)//2
         return [midx,midy]
+    """
 
 class MainWindow(QMainWindow):
     """
@@ -369,6 +471,8 @@ class MainWindow(QMainWindow):
         curve_b_spline_act.triggered.connect(self.curve_b_spline_action)
         # 平移
         translate_act.triggered.connect(self.translate_action)
+        # 旋转
+        rotate_act.triggered.connect(self.rotate_action)
         
         self.list_widget.currentTextChanged.connect(self.canvas_widget.selection_changed)
 
@@ -509,6 +613,13 @@ class MainWindow(QMainWindow):
     def translate_action(self):
         self.canvas_widget.status = 'translate'
         self.statusBar().showMessage('平移选中图元')
+        self.canvas_widget.selectedItemClear()
+        
+    # 旋转
+    def rotate_action(self):
+        self.canvas_widget.status = 'rotate'
+        self.statusBar().showMessage('旋转选中图元')
+        self.canvas_widget.selectedItemClear()
     
 if __name__ == '__main__':
     app = QApplication(sys.argv)

@@ -40,6 +40,10 @@
 \subsection{绘制曲线}
 \indent Bezier,参考<计算机图形学教程> 6.3.3和6.3.4.\\
 \indent B-spline,参考https://blog.csdn.net/Hachi_Lin/article/details/89812126, 但似乎没有通过首末控制点.
+\subsection{平移}
+\indent 平移参考ppt
+\subsection{旋转}
+\indent 旋转参考ppt
 \section{系统介绍}
 gui部分中目前仍按原始代码用QListWidget记录图元, 能鼠标控制两种算法绘制线段,
 多边形的鼠标绘制尚未完成.\\
@@ -48,7 +52,10 @@ gui部分中目前仍按原始代码用QListWidget记录图元, 能鼠标控制�
 原来的代码由于点击绘制线段和在画布上press mouse都会使id加1,因此图元编号并不连续,对此进行了修改.\\
 保存画布的代码参考了https://stackoverflow.com/questions/35191327/how-to-save-images-from-qgraphicsview?r=SearchResults\\
 gui绘制多边形也实现了,最后一条边离起始点5$\times$5范围内闭合.\\
-图形没完成的会在点击任意按钮时完成
+图形没完成的会在点击任意按钮时完成\\
+平移时按下的点为[x0,y0], 移动时为[x1,y1], 计算出dx,dy并paint.目前边界得松手才会更新\\
+编辑时有些操作参数较多,需要点击两次,比如旋转,这时如果点击一次就切走做别的,第一次点击选择的点仍然会保留在对应item中.但是每次进行编辑操作前都会调用selectedTransClear()函数,确保选择的item的相应参数恢复到初始状态.\\
+
 \section{总结}
 暂时防忘:
 \indent 1.画布的宽是[0, width-1],高是[0, height-1]\\

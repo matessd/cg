@@ -90,7 +90,24 @@ if __name__ == '__main__':
                     y = int(line[3+2*i])
                     pixels.append([x,y])
                 algorithm = line[-1]
-                item_dict[item_id] = ['curve', pixels, algorithm, np.array(pen_color)]                
+                item_dict[item_id] = ['curve', pixels, algorithm, np.array(pen_color)]   
+            elif line[0] == 'translate':
+                item_id = line[1]
+                dx = int(line[2])
+                dy = int(line[3])
+                if item_id in item_dict:
+                    new_p_list = alg.translate(item_dict[item_id][1], dx, dy)
+                    item_dict[item_id][1] = new_p_list
+            elif line[0] == 'rotate':
+                item_id = line[1]
+                xr = int(line[2])
+                yr = int(line[3])
+                theta = int(line[4])
+                if item_id in item_dict:
+                    # can't rotate ellipse
+                    if item_dict[item_id][0] != 'ellipse':
+                        new_p_list = alg.rotate(item_dict[item_id][1], xr, yr, theta)
+                        item_dict[item_id][1] = new_p_list
             ...
 
             line = fp.readline()

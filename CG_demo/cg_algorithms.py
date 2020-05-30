@@ -275,7 +275,6 @@ def draw_curve(p_list, algorithm):
                 result.append(start+i*step)
             return result
         T = linspace(1,10,n+k+1) # T 范围1到10，均匀B样条曲线
-        print(len(T),n+k+1)
         # if n >= k-1:
         #     T = [1]*k+(np.linspace(2,9,n-k+1)).tolist()+[10]*k # 准均匀样条
 
@@ -335,11 +334,11 @@ def translate(p_list, dx, dy):
     :param dy: (int) 垂直方向平移量
     :return: (list of list of int: [[x_0, y_0], [x_1, y_1], [x_2, y_2], ...]) 变换后的图元参数
     """
-    # result = []
+    result = []
     for i in range(len(p_list)):
-        # result.append([p_list[i][0]+dx, p_list[i][1]+dy])
-        p_list[i] = [p_list[i][0]+dx, p_list[i][1]+dy]
-    return p_list
+        result.append([p_list[i][0]+dx, p_list[i][1]+dy])
+        #p_list[i] = [p_list[i][0]+dx, p_list[i][1]+dy]
+    return result
 
 
 def rotate(p_list, x, y, r):
@@ -351,7 +350,15 @@ def rotate(p_list, x, y, r):
     :param r: (int) 顺时针旋转角度（°）
     :return: (list of list of int: [[x_0, y_0], [x_1, y_1], [x_2, y_2], ...]) 变换后的图元参数
     """
-    pass
+    result = []
+    le = len(p_list)
+    for i in range(le):
+        x1 = x + (p_list[i][0]-x)*math.cos(math.radians(r)) \
+            - (p_list[i][1]-y)*math.sin(math.radians(r))
+        y1 = y + (p_list[i][0]-x)*math.sin(math.radians(r)) \
+            + (p_list[i][1]-y)*math.cos(math.radians(r))
+        result.append([int(x1), int(y1)])
+    return  result
 
 
 def scale(p_list, x, y, s):
