@@ -1,0 +1,15 @@
+resetCanvas 600 600
+drawEllipse face 200 550 400 350
+drawEllipse lefteye 240 500 260 460
+drawEllipse righteye 240 500 260 460
+translate righteye 100 0
+drawCurve mouth 230 450 250 360 300 400 350 360 370 450 B-spline 
+translate mouth 0 20
+drawCurve mouth2 255 405 300 360 345 405 Bezier
+drawPolygon hat 213 557 235 501 233 401 213 361 Bresenham
+rotate hat 200 550 270
+drawLine leg1 300 350 200 100 DDA
+rotate leg1 300 350 -40
+drawLine leg2 300 350 200 100 Bresenham
+drawLine arm 170 300 430 300 DDA
+saveCanvas hahaha

@@ -19,7 +19,7 @@
 
 %--
 \begin{document}
-\title{\textbf{《计算机图形学》 4月报告 }}
+\title{\textbf{《计算机图形学》 5月报告 }}
 \author{学号，姓名，\href{mailto:xxx@xxx.com}{171240511@smail.nju.edu.cn}}
 \maketitle
 
@@ -28,45 +28,62 @@
 
 \section{算法介绍}
 \subsection{绘制线段}
-目前假定指令中两端点不等.\\
-\indent DDA算法:基本思想是记下起点,然后让长的一边变量不断加一,短的一边则不断加斜率后取近似\cite{rog_2002}\\
-\indent Bresenham算法:也是长的每次加一,但是短的一边则是累计再近似,因此精度更高.而因为采用了判断e符号的方法,可以转换成全整数计算,也更快速.\cite{rog_2002}\\
-\indent 因为讲义中说不要求像素级一致,所以目前和伪代码一样只亮一边端点.
+\indent DDA算法:\ 基本思想是记下起点,然后让长的一边变量不断加一,短的一边则不断加斜率乘1后近似为int值.
+伪代码参照\cite{rog_2002}\\
+
+\indent Bresenham算法:\ 基本思想其实和DDA是一样的.只是Bresenham算法通过变形避免了浮点运算.
+这样一来,既提高了运算的效率,又避免了浮点数不断累加造成的长线段误差.
+所以本质上,Bresenham是DDA算法的优化形式.伪代码参照\cite{rog_2002}\\
+
+\indent 能够处理两端点相等的情况.\\
+\indent 因为讲义中说不要求像素级一致,所以和伪代码一样只亮一边端点,即线段点的范围$[P_0,P_1)$.\\
+
 \subsection{绘制多边形}
-直接调用线段绘制算法连点.\\
-\indent 但是对于多边形绘制边的选择有点不确定,目前理解的是指令中的点是排好序的,都是邻边.
+默认指令中的点是排好序的, 直接调用线段绘制算法按顺序连点.\\
+
 \subsection{绘制椭圆}
-\indent 直接参考书上ppt相关部分.
+\indent 使用ppt上的中点椭圆算法, 先画出1/4椭圆, 然后对称. 画1/4椭圆时,根据是否到达切线斜率为-1的位置, 来判断选点的方向是基于x还是基于y, 再根据实际椭圆上的点离哪个点更近取近似.\\
+\indent 实际代码要先求出中心和长短轴, 然后以中心为原点求点, 再映射回原来的坐标系.\\
+\indent 对称的时候考虑了x轴和y轴上的特例, 不然x=0和y=0的点对称后相当于1个点出现了两次.\\
+\indent 代码流程参考书上ppt相关部分.\\
+
 \subsection{绘制曲线}
-\indent Bezier,参考<计算机图形学教程> 6.3.3和6.3.4.\\
-\indent B-spline,参考https://blog.csdn.net/Hachi_Lin/article/details/89812126, 但似乎没有通过首末控制点.
+\indent Bezier,参考\cite{sun_2006}中6.3.3和6.3.4.\\
+\indent B-spline,实现参考了\cite{bspline_web} 没有通过首末控制点.\\
+
 \subsection{平移}
-\indent 平移参考ppt
+\indent 平移部分参考ppt, 直接令各图形的控制点偏移[dx,dy]即可.\\
+
 \subsection{旋转}
-\indent 旋转参考ppt
+\indent 旋转部分参考ppt, 直接套用公式, 各图形的控制点相对于旋转中心[x,y]顺时针旋转r度即可.
+
 \subsection{缩放}
-\indent 缩放参考ppt
+\indent 缩放部分参考ppt, 直接套用公式, 控制点相对于缩放中心[x,y]缩放s倍即可.
+
 \subsection{裁剪}
-\indent liang-Barskey算法参考https://blog.csdn.net/sinat_34686158/article/details/78745492
+\indent liang-Barskey算法参考\cite{liang_web}和ppt\\
+\indent Cohen-Sutherland算法参考\cite{cohen_web}\\
+
 \section{系统介绍}
 gui部分中目前仍按原始代码用QListWidget记录图元, 能鼠标控制两种算法绘制线段,
 多边形的鼠标绘制尚未完成.\\
-画笔颜色选择参考了http://code.py40.com/pyqt5/24.html, 画笔颜色选择应在绘制图元之前\\
+画笔颜色选择参考了\cite{pyqt5_ch}, 画笔颜色选择应在绘制图元之前\\
 重置画布\\
 原来的代码由于点击绘制线段和在画布上press mouse都会使id加1,因此图元编号并不连续,对此进行了修改.\\
-保存画布的代码参考了https://stackoverflow.com/questions/35191327/how-to-save-images-from-qgraphicsview?r=SearchResults\\
+保存画布的代码参考了\cite{save_canvas}\\
 gui绘制多边形也实现了,最后一条边离起始点5$\times$5范围内闭合.\\
 图形没完成的会在点击任意按钮时完成\\
 平移时按下的点为[x0,y0], 移动时为[x1,y1], 计算出dx,dy并paint.目前边界得松手才会更新\\
 编辑时有些操作参数较多,需要点击两次,比如旋转,这时如果点击一次就切走做别的,第一次点击选择的点仍然会保留在对应item中.但是每次进行编辑操作前都会调用selectedTransClear()函数,确保选择的item的相应参数恢复到初始状态.\\
-缩放基本的实现思路和旋转一致.
+缩放基本的实现思路和旋转一致.\\
+裁剪后,如果线段什么点也没剩下,仍然保留QListWiget中该图元,但是无法对其进行任何操作\\
 \section{总结}
 暂时防忘:
 \indent 1.画布的宽是[0, width-1],高是[0, height-1]\\
 
 \indent 2.gui中sys.exit(app.exec\_())改为app.exec\_(),自己手动退出,不然Spyder运行手动退出时会报错.
 此外,还得加上del app,不然重新运行的时候也会有点问题.
-参考https://stackoverflow.com/questions/10888045/simple-ipython-example-raises-exception-on-sys-exit\\
+参考\cite{exit}\\
 
 \indent 3.框架代码是鼠标一动就将MyItem中的图元绘制,
 这导致绘制直线的时候直线随着拖动不断绘制,这包括了最开始端点重合的情况,

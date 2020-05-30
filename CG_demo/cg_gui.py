@@ -28,6 +28,7 @@ g_width = g_height = 600
 # if the last item is over
 global g_draw_finish
 g_draw_finish = 1
+global g_list_widget
 
 class MyCanvas(QGraphicsView):
     """
@@ -133,10 +134,10 @@ class MyCanvas(QGraphicsView):
                                         [[x, y], [x, y]], self.temp_algorithm)
                 self.scene().addItem(self.temp_item)          
             else:
-                if self.temp_algorithm == 'B-spline':
+                """if self.temp_algorithm == 'B-spline':
                     self.temp_item.p_list.append([x,y])   
-                else :
-                    self.temp_item.p_list.insert(-1, [x,y])   
+                else :"""
+                self.temp_item.p_list.insert(-1, [x,y])   
         elif self.status == 'translate':
             if self.selected_id == '':
                 return
@@ -161,6 +162,17 @@ class MyCanvas(QGraphicsView):
             else:
                 # cannot appear this situation, clear
                 self.item_dict[sid].trans_clear()
+        elif self.status == 'clip':
+            if self.selected_id == '':
+                return
+            sid = self.selected_id
+            if self.item_dict[self.selected_id].item_type != 'line':
+                return
+            self.item_dict[sid].trans_type = 'clip'
+            self.item_dict[sid].trans_algorithm = self.temp_algorithm
+            self.item_dict[sid].center = [x,y]
+            self.item_dict[sid].poi = [x,y]
+            self.item_dict[sid].trans_over = 0
         self.updateScene([self.sceneRect()])
         #self.updateScene([self.temp_item.boundingRect()])
         super().mousePressEvent(event)
@@ -175,13 +187,13 @@ class MyCanvas(QGraphicsView):
             self.temp_item.p_list[-1] = [x, y]
         elif self.status == 'curve':
             le = len(self.temp_item.p_list)
-            if self.temp_algorithm == 'B-spline':
+            """if self.temp_algorithm == 'B-spline':
+                self.temp_item.p_list[-1] = [x, y]
+            else:"""
+            if le <= 2: 
                 self.temp_item.p_list[-1] = [x, y]
             else:
-                if le <= 2: 
-                    self.temp_item.p_list[-1] = [x, y]
-                else:
-                    self.temp_item.p_list[-2] = [x, y]
+                self.temp_item.p_list[-2] = [x, y]
         elif self.status == 'translate':
             if self.selected_id == '':
                 return
@@ -199,6 +211,14 @@ class MyCanvas(QGraphicsView):
                 self.item_dict[sid].poi1 = [x,y]                
             else:
                 self.item_dict[sid].trans_clear()
+        elif self.status == 'clip':
+            if self.selected_id == '':
+                return
+            if self.item_dict[self.selected_id].item_type != 'line':
+                return
+            sid = self.selected_id
+            self.item_dict[sid].trans_type = 'clip'
+            self.item_dict[sid].poi = [x,y]  
         self.updateScene([self.sceneRect()])
         #self.updateScene([self.temp_item.boundingRect()])
         super().mouseMoveEvent(event)
@@ -254,6 +274,16 @@ class MyCanvas(QGraphicsView):
             else:
                 self.item_dict[sid].trans_clear()
             self.updateScene([self.sceneRect()])
+        elif self.status == 'clip':
+            if self.selected_id == '':
+                return
+            if self.item_dict[self.selected_id].item_type != 'line':
+                return
+            sid = self.selected_id
+            # change item p_list
+            self.item_dict[sid].trans_over = 1
+            # updateScene是super()时执行的
+            self.updateScene([self.sceneRect()])
         super().mouseReleaseEvent(event)
 
 
@@ -279,6 +309,7 @@ class MyItem(QGraphicsItem):
         self.penColor = g_penColor  # 自己的penColor
         # for transformation
         self.trans_type = ''
+        self.trans_algorithm = ''
         self.poi = [0,0] # [x,y] of move
         self.center = [0,0] # [x,y] of center
         self.trans_over = 0 # if the transformation operation over
@@ -286,6 +317,7 @@ class MyItem(QGraphicsItem):
         
     def trans_clear(self):
         self.trans_type = ''
+        self.trans_algorithm = ''
         self.center = [0,0]
         self.poi = [0,0]
         self.trans_over = 0   
@@ -293,7 +325,6 @@ class MyItem(QGraphicsItem):
         
     #gui会在鼠标事件自动调用paint重新绘制所有图元
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: Optional[QWidget] = ...) -> None:
-        painter.setPen(self.penColor)
         item_pixels = []
         def draw(p_list, algorithm):
             # draw figure
@@ -323,7 +354,7 @@ class MyItem(QGraphicsItem):
             angle1 = int(angle1 * 180/math.pi)
             angle2 = math.atan2(dy2, dx2)
             angle2 = int(angle2 * 180/math.pi)
-            ret = angle2 - angle1
+            ret = angle1 - angle2
             return ret
         
         # choose p_list accoring to trans_type
@@ -363,8 +394,32 @@ class MyItem(QGraphicsItem):
                 self.trans_clear()
                 # chang p_list
                 self.p_list = new_p_list    
-        item_pixels = draw(new_p_list, self.algorithm)
+        elif self.trans_type == 'clip':
+            # 画出裁剪窗口
+            if self.trans_over == 0:
+                painter.setPen(QColor(255, 0, 0))
+                painter.drawRect( self.regionRect([self.center,self.poi]) ) 
+            elif self.trans_over == 1:
+                """
+                x_min = min(self.center[0],self.poi[0])
+                x_max = max(self.center[0],self.poi[0])
+                y_min = min(self.center[1],self.poi[1])
+                y_max = max(self.center[1],self.poi[1])"""
+                new_p_list = alg.clip(self.p_list, self.center[0], self.center[1],\
+                                self.poi[0], self.poi[1], self.trans_algorithm)
+                # clear
+                self.trans_clear()
+                # change p_list
+                self.p_list = new_p_list
+        if new_p_list != []:
+            item_pixels = draw(new_p_list, self.algorithm)
+        else :
+            # 只可能是线段被裁剪没了
+            # g_list_widget.takeItem(int(self.id))
+            self.trans_type = 'deleted'
+            return 
         # draw
+        painter.setPen(self.penColor)
         for p in item_pixels:
             painter.drawPoint(*p)
         # draw bound
@@ -383,6 +438,9 @@ class MyItem(QGraphicsItem):
     
     def compute_region(self, new_p_list):
         x,y,w,h = [0,0,0,0]
+        # 裁剪线段后可能出现p_list空的的图元
+        if new_p_list == []:
+            return [x,y,w,h]
         if self.item_type == 'line' or self.item_type == 'ellipse':
             x0, y0 = new_p_list[0]
             x1, y1 = new_p_list[1]
@@ -425,6 +483,8 @@ class MainWindow(QMainWindow):
         # 注：这是图元选择的简单实现方法，更好的实现是在画布中直接用鼠标选择图元
         self.list_widget = QListWidget(self)
         self.list_widget.setMinimumWidth(200)
+        global g_list_widget
+        g_list_widget = self.list_widget
 
         # 使用QGraphicsView作为画布
         self.scene = QGraphicsScene(self)
@@ -488,6 +548,9 @@ class MainWindow(QMainWindow):
         rotate_act.triggered.connect(self.rotate_action)
         # 缩放
         scale_act.triggered.connect(self.scale_action)
+        # 裁剪
+        clip_cohen_sutherland_act.triggered.connect(self.clip_cohen_sutherland_action)
+        clip_liang_barsky_act.triggered.connect(self.clip_liang_barsky_action)
         
         self.list_widget.currentTextChanged.connect(self.canvas_widget.selection_changed)
 
@@ -641,9 +704,22 @@ class MainWindow(QMainWindow):
         self.canvas_widget.status = 'scale'
         self.statusBar().showMessage('缩放选中图元')
         self.canvas_widget.selectedItemClear()
+        
+    def clip_cohen_sutherland_action(self):
+        self.canvas_widget.status = 'clip'
+        self.canvas_widget.temp_algorithm = 'Cohen-Sutherland'
+        self.statusBar().showMessage('Cohen-Sutherland算法裁剪线段')
+        self.canvas_widget.selectedItemClear() 
+        
+    def clip_liang_barsky_action(self):
+        self.canvas_widget.status = 'clip'
+        self.canvas_widget.temp_algorithm = 'Liang-Barsky'
+        self.statusBar().showMessage('Liang-Barsky算法裁剪线段')
+        self.canvas_widget.selectedItemClear()
     
 if __name__ == '__main__':
     app = QApplication(sys.argv)
+    # print(dir(MyItem))
     mw = MainWindow()
     mw.show()
     app.exec_()

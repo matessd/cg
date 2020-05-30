@@ -124,8 +124,8 @@ if __name__ == '__main__':
                 y1 = int(line[5])
                 algorithm = line[-1]     
                 if item_id in item_dict:
-                    new_p_list = alg.clip(item_dict[item_id][1], x0, x1, y1, y0, algorithm)
-                    #print(item_dict[item_id][1], new_p_list)
+                    new_p_list = alg.clip(item_dict[item_id][1], x0, y0, x1, y1, algorithm)
+                    # print(new_p_list)
                     if new_p_list == []:
                         del item_dict[item_id]
                     else :

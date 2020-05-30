@@ -47,7 +47,6 @@ def draw_line(p_list, algorithm):
         dx = (x1-x0)/length
         dy = (y1-y0)/length
         for i in range(1, length+1):
-            #这里i是从1开始还是从0开始好？?
             result.append((math.floor(x), math.floor(y)))
             x += dx; y += dy
     elif algorithm == 'Bresenham':
@@ -352,11 +351,13 @@ def rotate(p_list, x, y, r):
     """
     result = []
     le = len(p_list)
+    cosr = math.cos(-math.radians(r))
+    sinr = math.sin(-math.radians(r))
     for i in range(le):
-        x1 = x + (p_list[i][0]-x)*math.cos(math.radians(r)) \
-            - (p_list[i][1]-y)*math.sin(math.radians(r))
-        y1 = y + (p_list[i][0]-x)*math.sin(math.radians(r)) \
-            + (p_list[i][1]-y)*math.cos(math.radians(r))
+        x1 = x + (p_list[i][0]-x)*cosr \
+            - (p_list[i][1]-y)*sinr
+        y1 = y + (p_list[i][0]-x)*sinr \
+            + (p_list[i][1]-y)*cosr
         result.append([int(x1), int(y1)])
     return  result
 
@@ -380,22 +381,75 @@ def scale(p_list, x, y, s):
         result.append([int(x1), int(y1)])
     return result
 
-
-def clip(p_list, x_min, x_max, y_min, y_max, algorithm):
+LEFT = 1
+RIGHT = 2
+BOTTOM = 4
+TOP = 8
+def clip(p_list, x_0, y_0, x_1, y_1, algorithm):
     """线段裁剪
-
     :param p_list: (list of list of int: [[x0, y0], [x1, y1]]) 线段的起点和终点坐标
-    :param x_min: 裁剪窗口最左x坐标
-    :param x_max: 裁剪窗口最右x坐标
-    :param y_min: 裁剪窗口最下y坐标
-    :param y_max: 裁剪窗口最上y坐标
+    :param x_0, y_0: 裁剪窗口一端坐标
+    :param x_1, y_1: 裁剪窗口另一端坐标
     :param algorithm: (string) 使用的裁剪算法，包括'Cohen-Sutherland'和'Liang-Barsky'
     :return: (list of list of int: [[x_0, y_0], [x_1, y_1]]) 裁剪后线段的起点和终点坐标
     """
+    x_min = min(x_0, x_1)
+    x_max = max(x_0, x_1)
+    y_min = min(y_0, y_1)
+    y_max = max(y_0, y_1)
     result = []
     # print(p_list, x_min, x_max, y_min, y_max, algorithm)
     if algorithm == 'Cohen-Sutherland':
-        pass
+        def encode(x, y):
+            c = 0
+            if x < x_min:
+                c = c | LEFT
+            if x > x_max:
+                c = c | RIGHT
+            if y < y_min:
+                c = c | BOTTOM
+            if y > y_max:
+                c = c | TOP
+            return c
+        
+        x1, y1 = p_list[0]
+        x2, y2 = p_list[1]
+        dx = x2-x1
+        dy = y2-y1
+        code1 = encode(x1, y1)
+        code2 = encode(x2, y2)
+        outcode = code1  # outcode是总在窗口外的那个端点
+        x, y = 0, 0
+        area = False  # 设置一个是否满足条件的区分标志
+        while True:
+            if (code2 | code1) == 0:
+                area = True
+                break
+            if (code1 & code2) != 0:  # 简弃之
+                break
+            if code1 == 0:  # 开始求交点
+                outcode = code2
+            if (LEFT & outcode) != 0:  # 在窗口xxx1区域
+                x = x_min
+                y = y1 + dy * (x_min - x1) / dx
+            elif (RIGHT & outcode) != 0:
+                x = x_max
+                y = y1 + dy * (x_max - x1) / dx
+            elif (BOTTOM & outcode) != 0:
+                y = y_min
+                x = x1 + dx * (y_min - y1) / dy
+            elif (TOP & outcode) != 0:
+                y = y_max
+                x = x1 + dx * (y_max - y1) / dy
+            x,y = int(x),int(y)  # 转换为整型
+            if outcode == code1:
+                x1, y1 = x, y
+                code1 = encode(x, y)
+            else:
+                x2, y2 = x, y
+                code2 = encode(x, y)
+        if area == True:  # 若满足条件即可划线
+            result.extend([[x1, y1], [x2, y2]])
     elif algorithm == 'Liang-Barsky':
         def compute_u1u2(dx, ql, qr, u1, u2):
             """计算边界的u1u2"""
@@ -435,9 +489,9 @@ def clip(p_list, x_min, x_max, y_min, y_max, algorithm):
         else :
             #print(u1,u2)
             u1,u2 = compute_u1u2(dx,q1,q2,u1,u2)
-            print(u1,u2)
-            u1,u2 = compute_u1u2(dx,q3,q4,u1,u2)
-            print(u1,u2)
+            #print(u1,u2)
+            u1,u2 = compute_u1u2(dy,q3,q4,u1,u2)
+            #print(u1,u2)
         # 判断u1,u2
         if u1>u2:
             return []
