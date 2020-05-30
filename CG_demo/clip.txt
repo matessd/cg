@@ -1,0 +1,32 @@
+resetCanvas 600 600
+drawLine line1 0 0 200 200 DDA
+clip line1 100 200 200 100 Liang-Barsky
+drawLine line2 20 0 20 200 DDA
+clip line2 0 0 0 0 Liang-Barsky
+drawLine line3 60 0 60 200 DDA
+clip line3 40 100 80 0 Liang-Barsky
+setColor 205 0 50
+drawLine l1 0 50 599 50 DDA
+drawLine l2 0 100 599 100 DDA
+drawLine l3 0 150 599 150 DDA
+drawLine l4 0 200 599 200 DDA
+drawLine l5 0 250 599 250 DDA
+drawLine l6 0 300 599 300 DDA
+drawLine l7 0 350 599 350 DDA
+drawLine l8 0 400 599 400 DDA
+drawLine l9 0 450 599 450 DDA
+drawLine 20 0 500 599 500 DDA
+drawLine 21 0 550 599 550 DDA
+
+drawLine 22 50 0 50 599  DDA
+drawLine 23 100 0 100 599  DDA
+drawLine 24 150 0 150 599  DDA
+drawLine 25 200 0 200 599  DDA
+drawLine 26 250 0 250 599  DDA
+drawLine 27 300 0 300 599  DDA
+drawLine 28 350 0 350 599  DDA
+drawLine 29 400 0 400 599  DDA
+drawLine 30 450 0 450 599  DDA
+drawLine 31 500 0 500 599  DDA
+drawLine 32 550 0 550 599  DDA
+saveCanvas clip

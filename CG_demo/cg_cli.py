@@ -108,6 +108,28 @@ if __name__ == '__main__':
                     if item_dict[item_id][0] != 'ellipse':
                         new_p_list = alg.rotate(item_dict[item_id][1], xr, yr, theta)
                         item_dict[item_id][1] = new_p_list
+            elif line[0] == 'scale':
+                item_id = line[1]
+                xs = int(line[2])
+                ys = int(line[3])
+                s = float(line[4])
+                if item_id in item_dict:
+                    new_p_list = alg.scale(item_dict[item_id][1], xs, ys, s)
+                    item_dict[item_id][1] = new_p_list
+            elif line[0] == 'clip':
+                item_id = line[1]
+                x0 = int(line[2])
+                y0 = int(line[3])
+                x1 = int(line[4])
+                y1 = int(line[5])
+                algorithm = line[-1]     
+                if item_id in item_dict:
+                    new_p_list = alg.clip(item_dict[item_id][1], x0, x1, y1, y0, algorithm)
+                    #print(item_dict[item_id][1], new_p_list)
+                    if new_p_list == []:
+                        del item_dict[item_id]
+                    else :
+                        item_dict[item_id][1] = new_p_list
             ...
 
             line = fp.readline()

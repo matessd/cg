@@ -145,12 +145,12 @@ class MyCanvas(QGraphicsView):
             self.item_dict[sid].center = [x,y]
             self.item_dict[sid].poi = [x,y]
             self.item_dict[sid].trans_over = 0
-        elif self.status == 'rotate':
+        elif self.status == 'rotate' or self.status == 'scale':
             if self.selected_id == '':
                 return
             sid = self.selected_id
             if self.item_dict[sid].param_cnt == 0:
-                self.item_dict[sid].trans_type = 'rotate'
+                self.item_dict[sid].trans_type = self.status
                 self.item_dict[sid].center = [x,y]
                 self.item_dict[sid].trans_over = 0
                 self.item_dict[sid].param_cnt = 1
@@ -189,7 +189,7 @@ class MyCanvas(QGraphicsView):
             self.item_dict[sid].trans_type = 'translate'
             self.item_dict[sid].poi = [x,y]  
             # self.item_dict[sid].trans_over = 0
-        elif self.status == 'rotate':
+        elif self.status == 'rotate' or self.status == 'scale':
             if self.selected_id == '':
                 return
             sid = self.selected_id
@@ -199,7 +199,6 @@ class MyCanvas(QGraphicsView):
                 self.item_dict[sid].poi1 = [x,y]                
             else:
                 self.item_dict[sid].trans_clear()
-        
         self.updateScene([self.sceneRect()])
         #self.updateScene([self.temp_item.boundingRect()])
         super().mouseMoveEvent(event)
@@ -244,7 +243,7 @@ class MyCanvas(QGraphicsView):
             self.item_dict[sid].trans_over = 1
             # updateScene是super()时执行的
             self.updateScene([self.sceneRect()])
-        elif self.status == 'rotate':
+        elif self.status == 'rotate' or self.status == 'scale':
             if self.selected_id == '':
                 return
             sid = self.selected_id
@@ -349,7 +348,21 @@ class MyItem(QGraphicsItem):
                 # clear
                 self.trans_clear()
                 # chang p_list
-                self.p_list = new_p_list        
+                self.p_list = new_p_list      
+        elif self.trans_type == 'scale':
+            if self.param_cnt == 2:
+                # 缩放倍数, 根据dx的比值确定
+                if self.poi[0]-self.center[0] == 0:
+                    s = 1
+                else :
+                    s = (self.poi1[0]-self.center[0])/(self.poi[0]-self.center[0])
+                new_p_list = alg.scale(self.p_list, \
+                                self.center[0], self.center[1], s)
+            if self.trans_over == 1:
+                # clear
+                self.trans_clear()
+                # chang p_list
+                self.p_list = new_p_list    
         item_pixels = draw(new_p_list, self.algorithm)
         # draw
         for p in item_pixels:
@@ -473,6 +486,8 @@ class MainWindow(QMainWindow):
         translate_act.triggered.connect(self.translate_action)
         # 旋转
         rotate_act.triggered.connect(self.rotate_action)
+        # 缩放
+        scale_act.triggered.connect(self.scale_action)
         
         self.list_widget.currentTextChanged.connect(self.canvas_widget.selection_changed)
 
@@ -619,6 +634,12 @@ class MainWindow(QMainWindow):
     def rotate_action(self):
         self.canvas_widget.status = 'rotate'
         self.statusBar().showMessage('旋转选中图元')
+        self.canvas_widget.selectedItemClear()
+    
+    # 缩放
+    def scale_action(self):
+        self.canvas_widget.status = 'scale'
+        self.statusBar().showMessage('缩放选中图元')
         self.canvas_widget.selectedItemClear()
     
 if __name__ == '__main__':

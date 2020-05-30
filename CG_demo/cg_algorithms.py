@@ -370,18 +370,82 @@ def scale(p_list, x, y, s):
     :param s: (float) 缩放倍数
     :return: (list of list of int: [[x_0, y_0], [x_1, y_1], [x_2, y_2], ...]) 变换后的图元参数
     """
-    pass
+    result = []
+    le = len(p_list)
+    x_bias = x*(1-s)
+    y_bias = y*(1-s)
+    for i in range(le):
+        x1 = p_list[i][0]*s + x_bias
+        y1 = p_list[i][1]*s + y_bias
+        result.append([int(x1), int(y1)])
+    return result
 
 
-def clip(p_list, x_min, y_min, x_max, y_max, algorithm):
+def clip(p_list, x_min, x_max, y_min, y_max, algorithm):
     """线段裁剪
 
     :param p_list: (list of list of int: [[x0, y0], [x1, y1]]) 线段的起点和终点坐标
-    :param x_min: 裁剪窗口左上角x坐标
-    :param y_min: 裁剪窗口左上角y坐标
-    :param x_max: 裁剪窗口右下角x坐标
-    :param y_max: 裁剪窗口右下角y坐标
+    :param x_min: 裁剪窗口最左x坐标
+    :param x_max: 裁剪窗口最右x坐标
+    :param y_min: 裁剪窗口最下y坐标
+    :param y_max: 裁剪窗口最上y坐标
     :param algorithm: (string) 使用的裁剪算法，包括'Cohen-Sutherland'和'Liang-Barsky'
     :return: (list of list of int: [[x_0, y_0], [x_1, y_1]]) 裁剪后线段的起点和终点坐标
     """
-    pass
+    result = []
+    # print(p_list, x_min, x_max, y_min, y_max, algorithm)
+    if algorithm == 'Cohen-Sutherland':
+        pass
+    elif algorithm == 'Liang-Barsky':
+        def compute_u1u2(dx, ql, qr, u1, u2):
+            """计算边界的u1u2"""
+            if dx>0: 
+                u1 = max(u1, ql/dx)
+                u2 = min(u2, qr/dx)
+            else :
+                u1 = max(u1, qr/dx)
+                u2 = min(u2, ql/dx)
+                # print(u1, u2, 2)
+            return [u1,u2]
+        u1,u2 = 0,1
+        x1,x2 = p_list[0][0], p_list[1][0]
+        y1,y2 = p_list[0][1], p_list[1][1]
+        dx = x2 - x1
+        dy = y2 - y1
+        # p1,p2,p3,p4 = [dx,dx,dy,dy]
+        q1,q2,q3,q4 = [x_min-x1, x_max-x1, y_min-y1, y_max-y1]
+        if dx == 0 and dy == 0:
+            # 线段两端点相同
+            if q1>=0 and q2>=0 and q3>=0 and q4>=0:
+                return p_list
+            else:
+                return []
+        if dx == 0:
+            # line: x=k
+            if q1>0 or q2<0:
+                # 平行在区域外
+                return []
+            u1,u2 = compute_u1u2(dy,q3,q4,u1,u2)
+        elif dy == 0:
+            # line: y=k
+            if q3>0 or q4<0:
+                # 平行在区域外
+                return []       
+            u1,u2 = compute_u1u2(dx,q1,q2,u1,u2)
+        else :
+            #print(u1,u2)
+            u1,u2 = compute_u1u2(dx,q1,q2,u1,u2)
+            print(u1,u2)
+            u1,u2 = compute_u1u2(dx,q3,q4,u1,u2)
+            print(u1,u2)
+        # 判断u1,u2
+        if u1>u2:
+            return []
+        else:
+            tx = x1 + u1*dx
+            ty = y1 + u1*dy
+            result.append([int(tx),int(ty)])
+            tx = x1 + u2*dx
+            ty = y1 + u2*dy
+            result.append([int(tx),int(ty)])
+    return result
