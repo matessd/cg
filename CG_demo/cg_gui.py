@@ -490,6 +490,7 @@ class MainWindow(QMainWindow):
         self.scene = QGraphicsScene(self)
         self.scene.setSceneRect(0, 0, g_width, g_height)
         self.canvas_widget = MyCanvas(self.scene, self)
+        #self.canvas_widget.setMinimumSize(600, 600)
         self.canvas_widget.setFixedSize(g_width, g_height)
         self.canvas_widget.main_window = self
         self.canvas_widget.list_widget = self.list_widget

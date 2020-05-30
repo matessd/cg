@@ -29,11 +29,11 @@
 \section{算法介绍}
 \subsection{绘制线段}
 \indent DDA算法:\ 基本思想是记下起点,然后让长的一边变量不断加一,短的一边则不断加斜率乘1后近似为int值.
-伪代码参照\cite{rog_2002}\\
+伪代码参照\cite{rog_2002}.\\
 
 \indent Bresenham算法:\ 基本思想其实和DDA是一样的.只是Bresenham算法通过变形避免了浮点运算.
 这样一来,既提高了运算的效率,又避免了浮点数不断累加造成的长线段误差.
-所以本质上,Bresenham是DDA算法的优化形式.伪代码参照\cite{rog_2002}\\
+所以本质上,Bresenham是DDA算法的优化形式.伪代码参照\cite{rog_2002}.\\
 
 \indent 能够处理两端点相等的情况.\\
 \indent 因为讲义中说不要求像素级一致,所以和伪代码一样只亮一边端点,即线段点的范围$[P_0,P_1)$.\\
@@ -61,8 +61,11 @@
 \indent 缩放部分参考ppt, 直接套用公式, 控制点相对于缩放中心[x,y]缩放s倍即可.
 
 \subsection{裁剪}
-\indent liang-Barskey算法参考\cite{liang_web}和ppt\\
-\indent Cohen-Sutherland算法参考\cite{cohen_web}\\
+\indent Cohen-Sutherland算法:\ 这个算法的特别之处在于位运算的思想,用4位二进制数表示左右上下四个位置的是否. 接着再分类讨论不同情况下线段裁剪时, 就可以用位运算来判断怎么裁剪线段. 它会重复裁剪直到线段完全在窗口内或者完全在窗口外.
+代码参考\cite{cohen_web}.\\
+\indent liang-Barskey算法:\ 这个算法不同于Cohen-Sutherland算法, 它希望一步直接将线段裁剪出来, 而不是重复裁剪.
+它用$P=P_1+u*(P2-P1)$来表示直线P, 并分情况判断和裁剪窗口相交点处的$u_1,u_2$值, 根据$u_1,u_2$的情况来判断结果.
+代码参考\cite{liang_web}和ppt.\\
 
 \section{系统介绍}
 gui部分中目前仍按原始代码用QListWidget记录图元, 能鼠标控制两种算法绘制线段,
