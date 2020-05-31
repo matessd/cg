@@ -229,9 +229,6 @@ class MyCanvas(QGraphicsView):
                 self.temp_item.p_list[-1] = [x, y]
             elif self.status == 'curve':
                 le = len(self.temp_item.p_list)
-                """if self.temp_algorithm == 'B-spline':
-                    self.temp_item.p_list[-1] = [x, y]
-                else:"""
                 if le <= 2: 
                     self.temp_item.p_list[-1] = [x, y]
                 else:
@@ -427,6 +424,7 @@ class MyItem(QGraphicsItem):
                 print("Can't rotate ellipse")
                 return 
             if self.param_cnt == 2:
+                # center and poi, poi1 all gotten
                 theta = angle([self.center, self.poi], [self.center, self.poi1])
                 new_p_list = alg.rotate(self.p_list, \
                                 self.center[0], self.center[1], theta)
@@ -668,6 +666,7 @@ class MainWindow(QMainWindow):
         rect = self.scene.sceneRect()
         # Create a pixmap, fill with white color
         pixmap = QPixmap(g_width, g_height)
+        # 设置背景白色
         pixmap.fill(QColor(255,255,255))
         # painter
         painter = QPainter(pixmap)

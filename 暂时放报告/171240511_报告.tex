@@ -15,6 +15,19 @@
 \usepackage[colorlinks,urlcolor=blue]{hyperref}
 \usepackage{enumerate}
 \setcounter{secnumdepth}{4}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{xcolor}
+\lstset{
+	%backgroundcolor=\color{red!50!green!50!blue!50},%代码块背景色为浅灰色
+	rulesepcolor= \color{gray}, %代码块边框颜色
+	breaklines=true,  %代码过长则换行
+	numbers=left, %行号在左侧显示
+	numberstyle= \small,%行号字体
+	%keywordstyle= \color{red},%关键字颜色
+	commentstyle=\color{gray}, %注释颜色
+	frame=shadowbox%用方框框住代码块
+}
 \renewcommand\refname{参考文献}
 %--
 
@@ -82,19 +95,85 @@ B-spline曲线绘制其中一段时, 目前选择取100个离散点, 再往大�
 
 \section{系统介绍}
 \subsection{CLI框架}
+沿用了老师的框架, 每次进行绘制图元或编辑图元操作时, 将需要的绘制信息储存在字典item\_dict中, 等到save\_Canvas时再根据每个item的item\_type, 调用相应算法计算图元的像素点, 并修改canvas中的值.
 \subsection{GUI框架}
-gui部分中目前仍按原始代码用QListWidget记录图元, 能鼠标控制两种算法绘制线段,
-多边形的鼠标绘制尚未完成.\\
-画笔颜色选择参考了\cite{pyqt5_ch}, 画笔颜色选择应在绘制图元之前\\
-重置画布\\
-原来的代码由于点击绘制线段和在画布上press mouse都会使id加1,因此图元编号并不连续,对此进行了修改.\\
-保存画布的代码参考了\cite{save_canvas}\\
-gui绘制多边形也实现了,最后一条边离起始点5$\times$5范围内闭合.\\
-图形没完成的会在点击任意按钮时完成\\
-平移时按下的点为[x0,y0], 移动时为[x1,y1], 计算出dx,dy并paint.目前边界得松手才会更新\\
-编辑时有些操作参数较多,需要点击两次,比如旋转,这时如果点击一次就切走做别的,第一次点击选择的点仍然会保留在对应item中.但是每次进行编辑操作前都会调用selectedTransClear()函数,确保选择的item的相应参数恢复到初始状态.\\
-缩放基本的实现思路和旋转一致.\\
-裁剪后,如果线段什么点也没剩下,仍然保留QListWiget中该图元,但是无法对其进行任何操作\\
+gui部分沿用了老师MainWindow(继承QMainWindow)作为主窗口, MyCanvas(继承QGraphicsView)作为画布, MyItem(继承QGraphicsItem)储存图元信息的框架.\\
+\indent 原始代码由于点击绘制图元和在画布上press mouse时都调用get\_id方法, 使item\_cnt加1,因此图元编号并不连续. 对此进行了修改, 令get\_id方法不修改item\_cnt, 另外声明方法id\_inc来修改item\_cnt.\\
+\indent 窗口布局情况如下图:
+\begin{itemize}
+	\item 最上面是菜单栏,由self.menuBar()方法返回, 可以进行设置画笔颜色等操作.
+	\item 下面一行是编辑工具栏,由self.addToolBar方法添加, 可以对图元进行平移等操作.
+	\item 左边是绘图工具栏,由self.addToolBar方法添加, 可以选择要绘制的图元类型及算法.
+	\item 右边窗口显示图元类型及编号, 由self.list\_widget()返回, 点击可以用于选择图元.
+	\item 下方状态栏, 由self.statusBar()方法返回, 显示当前在进行什么操作.
+	\item 最中间的则是画布区域, 定义MyCanvas类, 可以用鼠标操作绘图.
+\end{itemize}
+\begin{figure}[H]
+	\includegraphics[width=5in,height=3in]{total.png}
+\end{figure}
+\subsection{GUI功能}
+\subsubsection{菜单栏}
+画笔颜色选择参考了\cite{pyqt5_ch}, 利用QColorDialog唤出调色板, 将选取的颜色值存在全局变量g\_penColor中, 每次要绘制图元的时候将g\_penColor作为画笔颜色, 关键代码如下:\\
+\begin{lstlisting}[language={python}]
+global g_penColor
+color = QColorDialog.getColor()
+g_penColor = color
+\end{lstlisting}
+\indent\\
+\indent 重置画布操作也参考了\cite{pyqt5_ch}, 调用两次QInputDialog获取新画布的x,y轴大小, 然后清空画布和场景, 初始化各个变量.\\
+\indent 保存画布的代码参考了\cite{save_canvas}, 利用QFileDialog.getSaveFileName输入要生成文件的目录和名字, 然后再用QGraphicsScene的render方法将画布的内容储存到QPixmap类中, 最后用QPixmap类的save方法生成文件.关键代码如下:\\
+\begin{lstlisting}[language={python}]
+fname = QFileDialog.getSaveFileName(self, 'Save file',\
+'/home/output/default','Image files (*.bmp)')        
+#cancel save
+if(fname[0]==''):
+    return
+# Get QRectF
+rect = self.scene.sceneRect()
+# Create a pixmap, fill with white color
+pixmap = QPixmap(g_width, g_height)
+# set background white
+pixmap.fill(QColor(255,255,255))
+# painter
+painter = QPainter(pixmap)
+# Render scene to the pixmap
+self.scene.render(painter, rect, rect)
+painter.end()
+# save bmp file
+pixmap.save(fname[0])    
+\end{lstlisting}
+\subsubsection{绘图工具栏}
+绘制线段和绘制椭圆其实是类似的, 都是先在mousePressEvent中记录一个端点, 然后在mouseMoveEvent中记录另一个端点, 然后利用updateScene方法更新画布, 这样在MyItem类中会自动调用paint方法绘制图形.\\
+\indent 绘制多边形又和绘制曲线类似, 都是要输入多个点集, 就添加一个全局变量g\_draw\_finish来判断绘制是否输入结束.具体来说, 多边形绘制时如果最后一个点在起始点5$\times$5范围内, 就闭合, g\_draw\_finish=1. 否则, 就和曲线绘制一样, 一直等到下一个任意操作(比如平移)时再调用check\_finish方法检测并处理未完成图元.\\
+\indent 注意, 绘制曲线时, 每次新控制点加入到末端控制点后面而非前面, 关键代码如下:\\
+\begin{lstlisting}[language={python}]
+le = len(self.temp_item.p_list)
+if le <= 2: 
+    self.temp_item.p_list[-1] = [x, y]
+else:
+    self.temp_item.p_list[-2] = [x, y]
+\end{lstlisting}
+\subsubsection{编辑工具栏}
+\indent 任何编辑操作前都要点击右边窗口选择图元.\\
+\indent 为了处理不同的编辑操作, 在MyItem中添加str类型的trans\_type成员, 用于判断编辑操作.\\
+\indent 平移操作时, 鼠标按下的点为[x0,y0], 移动时为[x1,y1], 计算出dx,dy并paint.\\
+\indent 旋转操作需要鼠标点击两次, 第一次点击确定了旋转中心坐标, 记录在MyItem的center中, 第二次点击和移动则确定了两个新的点存在MyItem的poi和poi1中,这时poi1-center和poi-center的夹角即为旋转角.注意椭圆不能旋转, 关键代码如下:\\
+\begin{lstlisting}[language={python}]
+if self.item_type == 'ellipse':
+    print("Can't rotate ellipse")
+    return 
+if self.param_cnt == 2:
+    # center and poi, poi1 all gotten
+    theta = angle([self.center, self.poi], [self.center, self.poi1])
+    new_p_list = alg.rotate(self.p_list, \
+              self.center[0], self.center[1], theta)
+\end{lstlisting}
+\indent\\
+\indent 编辑时有些操作参数较多,需要点击两次,比如旋转,这时如果点击一次就切走做别的,第一次点击选择的点仍然会保留在对应item中.但是每次进行编辑操作前都会调用selectedTransClear()方法,确保选择的item的相应参数恢复到初始状态.\\
+\indent 缩放基本的实现思路和旋转一致, 先确定缩放中心, 再根据两线段x方向比值确定缩放倍数.\\
+\indent 裁剪操作,如果线段什么点也没剩下,仍然保留QListWiget中该图元,但是无法对其进行任何操作
+\subsection{额外功能}
+目前实现的额外功能是点击画布右、下、右下角边框后拖动调整画布大小, 这个功能并不会对正在进行的绘制有影响.
 \section{总结}
 \subsection{遇到的一些问题}
 \begin{itemize}
