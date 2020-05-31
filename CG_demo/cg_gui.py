@@ -47,6 +47,8 @@ class MyCanvas(QGraphicsView):
         #draw polygon need temp_item to judge start 
         self.temp_item = MyItem(self.temp_id, 'noneType', \
                                     [[0, 0], [0, 0]], 'noneAlg')
+        # 拖动画布时判断画布的缩放情况
+        self.is_image_scaling = 0
 
     #clear canvas
     def clear_canvas(self):
@@ -117,62 +119,72 @@ class MyCanvas(QGraphicsView):
         pos = self.mapToScene(event.localPos().toPoint())
         x = int(pos.x())
         y = int(pos.y())
-        if self.status == 'line' or self.status == 'ellipse':
-            self.temp_item = MyItem(self.temp_id, self.status, \
-                                    [[x, y], [x, y]], self.temp_algorithm)
-            self.scene().addItem(self.temp_item)
-        elif self.status == 'polygon':
-            if self.temp_item.id != self.main_window.get_id():
+        
+        # 点击边界外附近时拖动画布
+        if g_width-5 <= x <= g_width+5 and g_height-5 <= y <= g_height+5:
+            self.is_image_scaling = 3  
+        elif g_width-5 <= x <= g_width+5:  
+            self.is_image_scaling = 1  
+        elif g_height-5 <= y <= g_height+5:  
+            self.is_image_scaling = 2
+
+        if self.is_image_scaling == 0:
+            if self.status == 'line' or self.status == 'ellipse':
                 self.temp_item = MyItem(self.temp_id, self.status, \
                                         [[x, y], [x, y]], self.temp_algorithm)
-                self.scene().addItem(self.temp_item)          
-            else:
-                self.temp_item.p_list.append([x,y])
-        elif self.status == 'curve':
-            if self.temp_item.id != self.main_window.get_id():
-                self.temp_item = MyItem(self.temp_id, self.status, \
-                                        [[x, y], [x, y]], self.temp_algorithm)
-                self.scene().addItem(self.temp_item)          
-            else:
-                """if self.temp_algorithm == 'B-spline':
-                    self.temp_item.p_list.append([x,y])   
-                else :"""
-                self.temp_item.p_list.insert(-1, [x,y])   
-        elif self.status == 'translate':
-            if self.selected_id == '':
-                return
-            sid = self.selected_id
-            self.item_dict[sid].trans_type = 'translate'
-            self.item_dict[sid].center = [x,y]
-            self.item_dict[sid].poi = [x,y]
-            self.item_dict[sid].trans_over = 0
-        elif self.status == 'rotate' or self.status == 'scale':
-            if self.selected_id == '':
-                return
-            sid = self.selected_id
-            if self.item_dict[sid].param_cnt == 0:
-                self.item_dict[sid].trans_type = self.status
+                self.scene().addItem(self.temp_item)
+            elif self.status == 'polygon':
+                if self.temp_item.id != self.main_window.get_id():
+                    self.temp_item = MyItem(self.temp_id, self.status, \
+                                            [[x, y], [x, y]], self.temp_algorithm)
+                    self.scene().addItem(self.temp_item)          
+                else:
+                    self.temp_item.p_list.append([x,y])
+            elif self.status == 'curve':
+                if self.temp_item.id != self.main_window.get_id():
+                    self.temp_item = MyItem(self.temp_id, self.status, \
+                                            [[x, y], [x, y]], self.temp_algorithm)
+                    self.scene().addItem(self.temp_item)          
+                else:
+                    """if self.temp_algorithm == 'B-spline':
+                        self.temp_item.p_list.append([x,y])   
+                    else :"""
+                    self.temp_item.p_list.insert(-1, [x,y])   
+            elif self.status == 'translate':
+                if self.selected_id == '':
+                    return
+                sid = self.selected_id
+                self.item_dict[sid].trans_type = 'translate'
                 self.item_dict[sid].center = [x,y]
-                self.item_dict[sid].trans_over = 0
-                self.item_dict[sid].param_cnt = 1
-            elif self.item_dict[sid].param_cnt == 1:
                 self.item_dict[sid].poi = [x,y]
-                self.item_dict[sid].poi1 = [x,y]
-                self.item_dict[sid].param_cnt = 2
-            else:
-                # cannot appear this situation, clear
-                self.item_dict[sid].trans_clear()
-        elif self.status == 'clip':
-            if self.selected_id == '':
-                return
-            sid = self.selected_id
-            if self.item_dict[self.selected_id].item_type != 'line':
-                return
-            self.item_dict[sid].trans_type = 'clip'
-            self.item_dict[sid].trans_algorithm = self.temp_algorithm
-            self.item_dict[sid].center = [x,y]
-            self.item_dict[sid].poi = [x,y]
-            self.item_dict[sid].trans_over = 0
+                self.item_dict[sid].trans_over = 0
+            elif self.status == 'rotate' or self.status == 'scale':
+                if self.selected_id == '':
+                    return
+                sid = self.selected_id
+                if self.item_dict[sid].param_cnt == 0:
+                    self.item_dict[sid].trans_type = self.status
+                    self.item_dict[sid].center = [x,y]
+                    self.item_dict[sid].trans_over = 0
+                    self.item_dict[sid].param_cnt = 1
+                elif self.item_dict[sid].param_cnt == 1:
+                    self.item_dict[sid].poi = [x,y]
+                    self.item_dict[sid].poi1 = [x,y]
+                    self.item_dict[sid].param_cnt = 2
+                else:
+                    # cannot appear this situation, clear
+                    self.item_dict[sid].trans_clear()
+            elif self.status == 'clip':
+                if self.selected_id == '':
+                    return
+                sid = self.selected_id
+                if self.item_dict[self.selected_id].item_type != 'line':
+                    return
+                self.item_dict[sid].trans_type = 'clip'
+                self.item_dict[sid].trans_algorithm = self.temp_algorithm
+                self.item_dict[sid].center = [x,y]
+                self.item_dict[sid].poi = [x,y]
+                self.item_dict[sid].trans_over = 0
         self.updateScene([self.sceneRect()])
         #self.updateScene([self.temp_item.boundingRect()])
         super().mousePressEvent(event)
@@ -181,44 +193,68 @@ class MyCanvas(QGraphicsView):
         pos = self.mapToScene(event.localPos().toPoint())
         x = int(pos.x())
         y = int(pos.y())
-        if self.status == 'line' or self.status == 'ellipse':
-            self.temp_item.p_list[1] = [x, y]
-        elif self.status == 'polygon':
-            self.temp_item.p_list[-1] = [x, y]
-        elif self.status == 'curve':
-            le = len(self.temp_item.p_list)
-            """if self.temp_algorithm == 'B-spline':
-                self.temp_item.p_list[-1] = [x, y]
-            else:"""
-            if le <= 2: 
-                self.temp_item.p_list[-1] = [x, y]
+        
+        def get_real_bound(x):
+            x_max = 600
+            if x>=1000:
+                x_max = 1000
+            elif x<=100:
+                x_max = 100
             else:
-                self.temp_item.p_list[-2] = [x, y]
-        elif self.status == 'translate':
-            if self.selected_id == '':
-                return
-            sid = self.selected_id
-            self.item_dict[sid].trans_type = 'translate'
-            self.item_dict[sid].poi = [x,y]  
-            # self.item_dict[sid].trans_over = 0
-        elif self.status == 'rotate' or self.status == 'scale':
-            if self.selected_id == '':
-                return
-            sid = self.selected_id
-            if self.item_dict[sid].param_cnt == 1:
-                pass
-            elif self.item_dict[sid].param_cnt == 2:
-                self.item_dict[sid].poi1 = [x,y]                
-            else:
-                self.item_dict[sid].trans_clear()
-        elif self.status == 'clip':
-            if self.selected_id == '':
-                return
-            if self.item_dict[self.selected_id].item_type != 'line':
-                return
-            sid = self.selected_id
-            self.item_dict[sid].trans_type = 'clip'
-            self.item_dict[sid].poi = [x,y]  
+                x_max = x
+            return x_max
+        
+        if self.is_image_scaling > 0:    
+            global g_width, g_height
+            if self.is_image_scaling == 1:  
+                g_width = get_real_bound(x)
+            elif self.is_image_scaling == 2:
+                g_height = get_real_bound(y)
+            else:  
+                g_width = get_real_bound(x)
+                g_height = get_real_bound(y)
+            self.scene().setSceneRect(0, 0, g_width, g_height)
+            self.setFixedSize(g_width+10, g_height+10)
+            self.main_window.resize(g_width, g_height)
+        else:
+            if self.status == 'line' or self.status == 'ellipse':
+                self.temp_item.p_list[1] = [x, y]
+            elif self.status == 'polygon':
+                self.temp_item.p_list[-1] = [x, y]
+            elif self.status == 'curve':
+                le = len(self.temp_item.p_list)
+                """if self.temp_algorithm == 'B-spline':
+                    self.temp_item.p_list[-1] = [x, y]
+                else:"""
+                if le <= 2: 
+                    self.temp_item.p_list[-1] = [x, y]
+                else:
+                    self.temp_item.p_list[-2] = [x, y]
+            elif self.status == 'translate':
+                if self.selected_id == '':
+                    return
+                sid = self.selected_id
+                self.item_dict[sid].trans_type = 'translate'
+                self.item_dict[sid].poi = [x,y]  
+                # self.item_dict[sid].trans_over = 0
+            elif self.status == 'rotate' or self.status == 'scale':
+                if self.selected_id == '':
+                    return
+                sid = self.selected_id
+                if self.item_dict[sid].param_cnt == 1:
+                    pass
+                elif self.item_dict[sid].param_cnt == 2:
+                    self.item_dict[sid].poi1 = [x,y]                
+                else:
+                    self.item_dict[sid].trans_clear()
+            elif self.status == 'clip':
+                if self.selected_id == '':
+                    return
+                if self.item_dict[self.selected_id].item_type != 'line':
+                    return
+                sid = self.selected_id
+                self.item_dict[sid].trans_type = 'clip'
+                self.item_dict[sid].poi = [x,y]  
         self.updateScene([self.sceneRect()])
         #self.updateScene([self.temp_item.boundingRect()])
         super().mouseMoveEvent(event)
@@ -233,57 +269,60 @@ class MyCanvas(QGraphicsView):
             else :
                 return False
         
-        # main
-        if self.status == 'line' or self.status == 'ellipse':
-            self.item_dict[self.temp_id] = self.temp_item
-            self.list_widget.addItem(self.status+" "+self.temp_id)
-            self.finish_draw()
-        elif self.status == 'polygon':
-            if self.temp_id not in self.item_dict:
-            #add into item_dict
+        if self.is_image_scaling >0:
+            self.is_image_scaling = 0
+        else:
+            # main
+            if self.status == 'line' or self.status == 'ellipse':
                 self.item_dict[self.temp_id] = self.temp_item
                 self.list_widget.addItem(self.status+" "+self.temp_id)
-            elif len(self.temp_item.p_list)>=4 and\
-                if_close(self.temp_item.p_list[0], self.temp_item.p_list[-1]):
-            #finish draw polygon
-                #[-1] and [0] refer to the same vertex
-                self.temp_item.p_list[-1] = self.temp_item.p_list[0]
                 self.finish_draw()
+            elif self.status == 'polygon':
+                if self.temp_id not in self.item_dict:
+                #add into item_dict
+                    self.item_dict[self.temp_id] = self.temp_item
+                    self.list_widget.addItem(self.status+" "+self.temp_id)
+                elif len(self.temp_item.p_list)>=4 and\
+                    if_close(self.temp_item.p_list[0], self.temp_item.p_list[-1]):
+                #finish draw polygon
+                    #[-1] and [0] refer to the same vertex
+                    self.temp_item.p_list[-1] = self.temp_item.p_list[0]
+                    self.finish_draw()
+                    self.updateScene([self.sceneRect()])
+            elif self.status == 'curve':
+                if self.temp_id not in self.item_dict:
+                #add into item_dict
+                    self.item_dict[self.temp_id] = self.temp_item
+                    self.list_widget.addItem(self.status+" "+self.temp_id)    
+            elif self.status == 'translate':
+                if self.selected_id == '':
+                    return
+                sid = self.selected_id
+                # change item p_list
+                self.item_dict[sid].trans_over = 1
+                # updateScene是super()时执行的
                 self.updateScene([self.sceneRect()])
-        elif self.status == 'curve':
-            if self.temp_id not in self.item_dict:
-            #add into item_dict
-                self.item_dict[self.temp_id] = self.temp_item
-                self.list_widget.addItem(self.status+" "+self.temp_id)    
-        elif self.status == 'translate':
-            if self.selected_id == '':
-                return
-            sid = self.selected_id
-            # change item p_list
-            self.item_dict[sid].trans_over = 1
-            # updateScene是super()时执行的
-            self.updateScene([self.sceneRect()])
-        elif self.status == 'rotate' or self.status == 'scale':
-            if self.selected_id == '':
-                return
-            sid = self.selected_id
-            if self.item_dict[sid].param_cnt == 1:
-                pass
-            elif self.item_dict[sid].param_cnt == 2:
-                self.item_dict[sid].trans_over = 1               
-            else:
-                self.item_dict[sid].trans_clear()
-            self.updateScene([self.sceneRect()])
-        elif self.status == 'clip':
-            if self.selected_id == '':
-                return
-            if self.item_dict[self.selected_id].item_type != 'line':
-                return
-            sid = self.selected_id
-            # change item p_list
-            self.item_dict[sid].trans_over = 1
-            # updateScene是super()时执行的
-            self.updateScene([self.sceneRect()])
+            elif self.status == 'rotate' or self.status == 'scale':
+                if self.selected_id == '':
+                    return
+                sid = self.selected_id
+                if self.item_dict[sid].param_cnt == 1:
+                    pass
+                elif self.item_dict[sid].param_cnt == 2:
+                    self.item_dict[sid].trans_over = 1               
+                else:
+                    self.item_dict[sid].trans_clear()
+                self.updateScene([self.sceneRect()])
+            elif self.status == 'clip':
+                if self.selected_id == '':
+                    return
+                if self.item_dict[self.selected_id].item_type != 'line':
+                    return
+                sid = self.selected_id
+                # change item p_list
+                self.item_dict[sid].trans_over = 1
+                # updateScene是super()时执行的
+                self.updateScene([self.sceneRect()])
         super().mouseReleaseEvent(event)
 
 
@@ -357,6 +396,13 @@ class MyItem(QGraphicsItem):
             ret = angle1 - angle2
             return ret
         
+        def thick_draw_point(painter, poi):
+            """加粗绘制一个点,用于裁剪线段时高亮选中部分"""
+            painter.drawPoint(*[poi[0]+1,poi[1]+1])
+            painter.drawPoint(*[poi[0]+1,poi[1]-1])
+            painter.drawPoint(*[poi[0]-1,poi[1]+1])
+            painter.drawPoint(*[poi[0]-1,poi[1]-1])
+        
         # choose p_list accoring to trans_type
         new_p_list = self.p_list
         if self.trans_type == 'translate':
@@ -395,16 +441,19 @@ class MyItem(QGraphicsItem):
                 # chang p_list
                 self.p_list = new_p_list    
         elif self.trans_type == 'clip':
-            # 画出裁剪窗口
             if self.trans_over == 0:
+                # 画出裁剪窗口
                 painter.setPen(QColor(255, 0, 0))
-                painter.drawRect( self.regionRect([self.center,self.poi]) ) 
+                painter.drawRect( self.regionRect([self.center,self.poi]) )                 
+                tmp_p_list = alg.clip(self.p_list, self.center[0], self.center[1],\
+                                self.poi[0], self.poi[1], self.trans_algorithm)
+                if tmp_p_list != []:
+                    tmp_pixels = draw(tmp_p_list,self.algorithm)
+                    painter.setPen(QColor(255, 0, 0))
+                    for p in tmp_pixels:
+                        thick_draw_point(painter, p)
             elif self.trans_over == 1:
-                """
-                x_min = min(self.center[0],self.poi[0])
-                x_max = max(self.center[0],self.poi[0])
-                y_min = min(self.center[1],self.poi[1])
-                y_max = max(self.center[1],self.poi[1])"""
+                # 得到裁剪后的端点
                 new_p_list = alg.clip(self.p_list, self.center[0], self.center[1],\
                                 self.poi[0], self.poi[1], self.trans_algorithm)
                 # clear
@@ -463,13 +512,6 @@ class MyItem(QGraphicsItem):
             w = w-x
             h = h-y
         return [x,y,w,h]
-    """
-    def compute_center(self):
-        x,y,w,h = self.compute_region()
-        midx = (x+w)//2
-        midy = (y+h)//2
-        return [midx,midy]
-    """
 
 class MainWindow(QMainWindow):
     """
@@ -491,7 +533,8 @@ class MainWindow(QMainWindow):
         self.scene.setSceneRect(0, 0, g_width, g_height)
         self.canvas_widget = MyCanvas(self.scene, self)
         #self.canvas_widget.setMinimumSize(600, 600)
-        self.canvas_widget.setFixedSize(g_width, g_height)
+        # self.canvas_widget.adjustSize()
+        self.canvas_widget.setFixedSize(g_width+10, g_height+10)
         self.canvas_widget.main_window = self
         self.canvas_widget.list_widget = self.list_widget
 
@@ -562,9 +605,10 @@ class MainWindow(QMainWindow):
         self.central_widget = QWidget()
         self.central_widget.setLayout(self.hbox_layout)
         self.setCentralWidget(self.central_widget)
-        self.statusBar().showMessage('空闲')
+        self.statusBar().showMessage('空闲中')
         self.resize(g_width, g_height)
-        self.setWindowTitle('CG Demo')
+        # self.adjustSize()
+        self.setWindowTitle('绘图工具')
 
     #clear and resize canvas
     def reset_canvas(self):
@@ -580,7 +624,7 @@ class MainWindow(QMainWindow):
         if x>1000 or x<100 or y>1000 or y<100:
             print("Resize Error: x>1000 or x<100 or y>1000 or y<100.")
             return
-        self.canvas_widget.setFixedSize(x, y)
+        self.canvas_widget.setFixedSize(x+10, y+10)
         self.scene.setSceneRect(0, 0, x, y)
         self.resize(x, y)
         global g_width, g_height

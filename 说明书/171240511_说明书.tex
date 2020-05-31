@@ -14,21 +14,37 @@
 \usepackage{url}
 \usepackage[colorlinks,urlcolor=blue]{hyperref}
 \usepackage{enumerate}
+\setcounter{secnumdepth}{4}
 \renewcommand\refname{参考文献}
 %--
 
 %--
 \begin{document}
-\title{\textbf{《 计算机图形学》3 月说明书}}
+\title{\textbf{《 计算机图形学》5月说明书}}
 \author{学号，姓名，\href{mailto:xxx@xxx.com}{171240511@smail.nju.edu.cn}}
 \maketitle
 
 \section{开发环境}
-系统:windows10 x64\\
-\indent Anaconda3: python 3.7.0\\
-\indent 编译器:spyder
-
+\begin{itemize}
+\item 系统: windows 10 1809
+\item Anaconda3(5.3.1): 
+	\begin{itemize}
+		\item python 3.7.0
+		\item numpy 1.15.1
+		\item pillow 5.2.0
+		\item pyqt 5.9.2
+	\end{itemize}
+\item IDE: Spyder 3.3.1
+\item 解释器: ipython 6.5.0
+\end{itemize}
 \section{编译运行}
-目前编译运行的命令和讲义一样:python cg\_cli.py input\_path output\_path\\
+CLI编译运行的命令和讲义一样: python cg\_cli.py input\_path output\_path\\
+\indent GUI的运行命令: python cg\_gui.py
+\section{系统功能说明}
+\subsection{命令行功能}
+接受两个参数, 第一个参数为指令文件的绝对路径或相对路径, 第二个参数为画布保存位置的绝对路径.
+实现讲义要求所有指令, 内容格式和讲义一致.
+\subsection{图形功能}
+\subsubsection{界面总览}
 
 \end{document}

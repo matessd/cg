@@ -29,30 +29,30 @@
 \section{算法介绍}
 \subsection{绘制线段}
 \indent DDA算法:\ 基本思想是记下起点,然后让长的一边变量不断加一,短的一边则不断加斜率乘1后近似为int值.
-伪代码参照\cite{rog_2002}.\\
+代码参照\cite{rog_2002}.\\
 
 \indent Bresenham算法:\ 基本思想其实和DDA是一样的.只是Bresenham算法通过变形避免了浮点运算.
 这样一来,既提高了运算的效率,又避免了浮点数不断累加造成的长线段误差.
-所以本质上,Bresenham是DDA算法的优化形式.伪代码参照\cite{rog_2002}.\\
+所以本质上,Bresenham是DDA算法的优化形式.代码参照\cite{rog_2002}.\\
 
 \indent 能够处理两端点相等的情况.\\
-\indent 因为讲义中说不要求像素级一致,所以和伪代码一样只亮一边端点,即线段点的范围$[P_0,P_1)$.\\
+\indent 因为讲义中说不要求像素级一致,所以和伪代码一样只亮一边端点,即线段点的范围$[P_0,P_1)$.
 
 \subsection{绘制多边形}
-默认指令中的点是排好序的, 直接调用线段绘制算法按顺序连点.\\
+默认指令中的点是排好序的, 直接调用线段绘制算法按顺序连点.
 
 \subsection{绘制椭圆}
 \indent 使用ppt上的中点椭圆算法, 先画出1/4椭圆, 然后对称. 画1/4椭圆时,根据是否到达切线斜率为-1的位置, 来判断选点的方向是基于x还是基于y, 再根据实际椭圆上的点离哪个点更近取近似.\\
 \indent 实际代码要先求出中心和长短轴, 然后以中心为原点求点, 再映射回原来的坐标系.\\
 \indent 对称的时候考虑了x轴和y轴上的特例, 不然x=0和y=0的点对称后相当于1个点出现了两次.\\
-\indent 代码流程参考书上ppt相关部分.\\
+\indent 代码流程参考书上ppt相关部分.
 
 \subsection{绘制曲线}
 \indent Bezier,参考\cite{sun_2006}中6.3.3和6.3.4.\\
-\indent B-spline,实现参考了\cite{bspline_web} 没有通过首末控制点.\\
+\indent B-spline,实现参考了\cite{bspline_web} 没有通过首末控制点.
 
 \subsection{平移}
-\indent 平移部分参考ppt, 直接令各图形的控制点偏移[dx,dy]即可.\\
+\indent 平移部分参考ppt, 直接令各图形的控制点偏移[dx,dy]即可.
 
 \subsection{旋转}
 \indent 旋转部分参考ppt, 直接套用公式, 各图形的控制点相对于旋转中心[x,y]顺时针旋转r度即可.
@@ -65,7 +65,7 @@
 代码参考\cite{cohen_web}.\\
 \indent liang-Barskey算法:\ 这个算法不同于Cohen-Sutherland算法, 它希望一步直接将线段裁剪出来, 而不是重复裁剪.
 它用$P=P_1+u*(P2-P1)$来表示直线P, 并分情况判断和裁剪窗口相交点处的$u_1,u_2$值, 根据$u_1,u_2$的情况来判断结果.
-代码参考\cite{liang_web}和ppt.\\
+代码参考\cite{liang_web}和ppt.
 
 \section{系统介绍}
 gui部分中目前仍按原始代码用QListWidget记录图元, 能鼠标控制两种算法绘制线段,
