@@ -449,12 +449,13 @@ class MyItem(QGraphicsItem):
                 self.p_list = new_p_list    
         elif self.trans_type == 'clip':
             if self.trans_over == 0:
-                # 画出裁剪窗口
+                # draw the clip window
                 painter.setPen(QColor(255, 0, 0))
                 painter.drawRect( self.regionRect([self.center,self.poi]) )                 
                 tmp_p_list = alg.clip(self.p_list, self.center[0], self.center[1],\
                                 self.poi[0], self.poi[1], self.trans_algorithm)
                 if tmp_p_list != []:
+                    # highlight the line in clip window
                     tmp_pixels = draw(tmp_p_list,self.algorithm)
                     painter.setPen(QColor(255, 0, 0))
                     for p in tmp_pixels:

@@ -171,9 +171,30 @@ if self.param_cnt == 2:
 \indent\\
 \indent 编辑时有些操作参数较多,需要点击两次,比如旋转,这时如果点击一次就切走做别的,第一次点击选择的点仍然会保留在对应item中.但是每次进行编辑操作前都会调用selectedTransClear()方法,确保选择的item的相应参数恢复到初始状态.\\
 \indent 缩放基本的实现思路和旋转一致, 先确定缩放中心, 再根据两线段x方向比值确定缩放倍数.\\
-\indent 裁剪操作,如果线段什么点也没剩下,仍然保留QListWiget中该图元,但是无法对其进行任何操作
+\indent 裁剪操作时,绘制裁剪窗口,并高亮窗口内线段,关键代码如下: \\
+\begin{lstlisting}[language={python}]
+# draw the clip window
+painter.setPen(QColor(255, 0, 0))
+painter.drawRect( self.regionRect([self.center,self.poi]) )                 
+tmp_p_list = alg.clip(self.p_list, self.center[0], self.center[1], self.poi[0], self.poi[1], self.trans_algorithm)
+if tmp_p_list != []:
+    # highlight the line in clip window
+    tmp_pixels = draw(tmp_p_list,self.algorithm)
+    painter.setPen(QColor(255, 0, 0))
+    for p in tmp_pixels:
+        thick_draw_point(painter, p)
+\end{lstlisting}
+\indent 如果裁剪对象不是线段, 则不起作用. 而如果裁剪后线段什么点也没剩下,仍然保留QListWiget中该图元,但是无法对其进行任何操作.
 \subsection{额外功能}
-目前实现的额外功能是点击画布右、下、右下角边框后拖动调整画布大小, 这个功能并不会对正在进行的绘制有影响.
+目前实现的额外功能是点击画布右、下、右下角边框后拖动调整画布大小, 这个功能并不会对正在进行的绘制有影响. 具体是通过MyCanvas中的is\_image\_scaling来判断情况的, 关键代码如下:\\
+\begin{lstlisting}[language={python}]
+if g_width-5 <= x <= g_width+5 and g_height-5 <= y <= g_height+5:
+    self.is_image_scaling = 3  
+elif g_width-5 <= x <= g_width+5:  
+    self.is_image_scaling = 1  
+elif g_height-5 <= y <= g_height+5:  
+    self.is_image_scaling = 2
+\end{lstlisting}
 \section{总结}
 \subsection{遇到的一些问题}
 \begin{itemize}
