@@ -16,9 +16,10 @@ from PyQt5.QtWidgets import (
     QHBoxLayout,
     QWidget,
     QStyleOptionGraphicsItem,
-    QColorDialog, QInputDialog, QFileDialog)
+    QColorDialog, QInputDialog, QFileDialog,
+    QAction,QToolBar)
 from PyQt5.QtGui import QPainter, QMouseEvent, QColor, QPixmap
-from PyQt5.QtCore import QRectF
+from PyQt5.QtCore import QRectF, Qt
 
 global g_penColor #used when set pencolor
 g_penColor = QColor(0,0,0) #black
@@ -53,7 +54,6 @@ class MyCanvas(QGraphicsView):
     #clear canvas
     def clear_canvas(self):
         #clear
-        self.scene().clear()
         self.list_widget.clear()
         self.main_window.reset_id()
         self.item_dict = {}
@@ -66,6 +66,9 @@ class MyCanvas(QGraphicsView):
                                     [[0, 0], [0, 0]], 'noneAlg')      
         global g_draw_finish
         g_draw_finish = 1
+        global g_penColor
+        g_penColor = QColor(0,0,0)
+        self.scene().clear()
     
     def start_draw(self, status, algorithm):
         self.check_finish()
@@ -104,6 +107,9 @@ class MyCanvas(QGraphicsView):
             self.item_dict[self.selected_id].selected = False
             self.item_dict[self.selected_id].update()
         strList = selected.split()
+        if strList == []:
+            # 重置画布的时候也会进入这个函数
+            return
         self.selected_id = strList[-1]
         self.item_dict[self.selected_id].selected = True
         self.item_dict[self.selected_id].update()
@@ -365,6 +371,9 @@ class MyItem(QGraphicsItem):
     #gui会在鼠标事件自动调用paint重新绘制所有图元
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: Optional[QWidget] = ...) -> None:
         item_pixels = []
+        if self.p_list == []:
+            # 裁剪后的线段如果空了就直接返回
+            return
         def draw(p_list, algorithm):
             # draw figure
             result = []
@@ -540,30 +549,41 @@ class MainWindow(QMainWindow):
 
         # 设置菜单栏
         menubar = self.menuBar()
-        file_menu = menubar.addMenu('文件')
-        set_pen_act = file_menu.addAction('设置画笔')
-        reset_canvas_act = file_menu.addAction('重置画布')
-        save_canvas_act = file_menu.addAction('保存画布')
-        exit_act = file_menu.addAction('退出')
-        draw_menu = menubar.addMenu('绘制')
-        line_menu = draw_menu.addMenu('线段')
-        #line_naive_act = line_menu.addAction('Naive')
-        line_dda_act = line_menu.addAction('DDA')
-        line_bresenham_act = line_menu.addAction('Bresenham')
-        polygon_menu = draw_menu.addMenu('多边形')
-        polygon_dda_act = polygon_menu.addAction('DDA')
-        polygon_bresenham_act = polygon_menu.addAction('Bresenham')
-        ellipse_act = draw_menu.addAction('椭圆')
-        curve_menu = draw_menu.addMenu('曲线')
-        curve_bezier_act = curve_menu.addAction('Bezier')
-        curve_b_spline_act = curve_menu.addAction('B-spline')
-        edit_menu = menubar.addMenu('编辑')
-        translate_act = edit_menu.addAction('平移')
-        rotate_act = edit_menu.addAction('旋转')
-        scale_act = edit_menu.addAction('缩放')
-        clip_menu = edit_menu.addMenu('裁剪')
-        clip_cohen_sutherland_act = clip_menu.addAction('Cohen-Sutherland')
-        clip_liang_barsky_act = clip_menu.addAction('Liang-Barsky')
+        set_pen_act = menubar.addAction('设置画笔')
+        reset_canvas_act = menubar.addAction('重置画布')
+        save_canvas_act = menubar.addAction('保存画布')
+        exit_act = menubar.addAction('退出')
+        
+        # 设置绘图工具栏
+        line_dda_act = QAction('DDA线段', self)
+        line_bresenham_act = QAction('Bresenham线段', self)
+        polygon_dda_act = QAction('DDA多边形', self)
+        polygon_bresenham_act = QAction('Bresenham多边形', self)
+        ellipse_act = QAction('椭圆', self)
+        curve_bezier_act = QAction('Bezier曲线', self)
+        curve_b_spline_act = QAction('B-spline曲线', self)
+        draw_toolbar = QToolBar('draw')
+        self.addToolBar(Qt.LeftToolBarArea, draw_toolbar)
+        draw_toolbar.addAction(line_dda_act)
+        draw_toolbar.addAction(line_bresenham_act)
+        draw_toolbar.addAction(polygon_dda_act)
+        draw_toolbar.addAction(polygon_bresenham_act)
+        draw_toolbar.addAction(ellipse_act)
+        draw_toolbar.addAction(curve_bezier_act)
+        draw_toolbar.addAction(curve_b_spline_act)
+        
+        # 设置编辑工具栏
+        edit_toolbar = self.addToolBar('edit')
+        translate_act = QAction('平移', self)
+        rotate_act = QAction('旋转', self)
+        scale_act = QAction('缩放', self)
+        clip_cohen_sutherland_act = QAction('Cohen-Sutherland裁剪',self)
+        clip_liang_barsky_act = QAction('Liang-Barsky裁剪',self)
+        edit_toolbar.addAction(translate_act)
+        edit_toolbar.addAction(rotate_act)
+        edit_toolbar.addAction(scale_act)
+        edit_toolbar.addAction(clip_cohen_sutherland_act)
+        edit_toolbar.addAction(clip_liang_barsky_act)
 
         # 连接信号和槽函数
         # 画笔
@@ -765,6 +785,7 @@ class MainWindow(QMainWindow):
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     # print(dir(MyItem))
+    #print(dir(QToolBar))
     mw = MainWindow()
     mw.show()
     app.exec_()
