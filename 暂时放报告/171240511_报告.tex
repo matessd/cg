@@ -14,6 +14,7 @@
 \usepackage{url}
 \usepackage[colorlinks,urlcolor=blue]{hyperref}
 \usepackage{enumerate}
+\setcounter{secnumdepth}{4}
 \renewcommand\refname{参考文献}
 %--
 
@@ -24,19 +25,19 @@
 \maketitle
 
 \section{综述}
-在老师所给框架代码上进行修改完善,暂时只完成了画布重置,线段绘制、多边形绘制的算法部分和gui的线段绘制.
-
+在老师所给框架代码上进行修改完善,完成了所有要求的指令输入输出,GUI界面实现了所CLI部分的所有功能,包括设置画笔颜色、重置画布、保存画布、两种算法绘制线段、两种算法绘制多边形、绘制椭圆、两种算法绘制曲线、平移、旋转、缩放和两种算法裁剪线段.\\
+\indent 额外实现了点击画布右、下、右下角边框调整画布大小.
 \section{算法介绍}
 \subsection{绘制线段}
-\indent DDA算法:\ 基本思想是记下起点,然后让长的一边变量不断加一,短的一边则不断加斜率乘1后近似为int值.
-代码参照\cite{rog_2002}.\\
-
-\indent Bresenham算法:\ 基本思想其实和DDA是一样的.只是Bresenham算法通过变形避免了浮点运算.
-这样一来,既提高了运算的效率,又避免了浮点数不断累加造成的长线段误差.
-所以本质上,Bresenham是DDA算法的优化形式.代码参照\cite{rog_2002}.\\
-
-\indent 能够处理两端点相等的情况.\\
-\indent 因为讲义中说不要求像素级一致,所以和伪代码一样只亮一边端点,即线段点的范围$[P_0,P_1)$.
+\subsubsection{DDA算法} 
+基本思想是记下起点,然后让长的一边变量不断加一,短的一边则不断加斜率乘1后近似为int值.代码参照\cite{rog_2002}.
+\subsubsection{Bresenham算法} 
+基本思想其实和DDA是一样的.只是Bresenham算法通过变形避免了浮点运算.这样一来,既提高了运算的效率,又避免了浮点数不断累加造成的长线段误差.所以本质上,Bresenham是DDA算法的优化形式.代码参照\cite{rog_2002}.
+\subsubsection{代码处理}
+\begin{itemize}
+\item 特判使得能够处理两端点相等的情况.
+\item 因为讲义中说不要求像素级一致,所以和伪代码一样只亮一边端点,即线段点的范围$[P_0,P_1)$.
+\end{itemize}
 
 \subsection{绘制多边形}
 默认指令中的点是排好序的, 直接调用线段绘制算法按顺序连点.
@@ -48,8 +49,18 @@
 \indent 代码流程参考书上ppt相关部分.
 
 \subsection{绘制曲线}
-\indent Bezier,参考\cite{sun_2006}中6.3.3和6.3.4.\\
-\indent B-spline,实现参考了\cite{bspline_web} 没有通过首末控制点.
+\subsubsection{Bezier曲线} 
+书上给出了Bezier曲线关于控制点的参数方程和矩阵形式, 但直接这样计算参数u对应的点效率太低, 于是又给出了de Casteljau递推算法来快速计算一个u值对应的曲线上点的坐标.\\
+\indent 有了这个递推算法后, 由于参数u位于[0,1]之间,理论上我们只要将[0,1]分割的足够小,就可以得到精度足够高的一条Bezier曲线.\\
+\indent 但这样分割, 为了确保精度, 我们往往要将步长设置的非常小, 从而导致计算次数过多. 于是书上给出了一种二分逼近的办法.也就是每次先计算u=1/2处的点, 然后用这个点将曲线分为两段, 再对这两段曲线进行u值的二分, 重复这个二分的操作, 最后每段曲线的控制多边形会很接近理论曲线, 就可以直接拿控制多边形当作实际曲线.\\
+\indent 实现参考\cite{sun_2006}中6.3.3和6.3.4.
+\subsubsection{B-spline曲线}
+B样条曲线的绘制本质上和Bezier没什么不同, 都是要根据递推式求参数u对应的离散点. 但具体实现起来还是有所不同的.\\
+\indent B样条曲线实际上是按照次数进行分段绘制的, k次B样条就是每k+1个控制点一段, 相邻两段有k个公共控制点, 这也解释了为什么它具有局部性.\\
+\indent 不过, 由于它的控制多边形不像Bezier曲线那样可以随着二分不断逼近, 在具体绘制一段B样条曲线时, 只能设置步长密集取点, 这既导致了步长取密时曲线会变粗(重叠部分), 也导致了效率的降低.\\
+\indent 实现参考\cite{bspline_web}.
+\subsubsection{代码处理}
+B-spline曲线绘制其中一段时, 目前选择取100个离散点, 再往大取GUI绘制时就会很卡.
 
 \subsection{平移}
 \indent 平移部分参考ppt, 直接令各图形的控制点偏移[dx,dy]即可.
@@ -61,13 +72,17 @@
 \indent 缩放部分参考ppt, 直接套用公式, 控制点相对于缩放中心[x,y]缩放s倍即可.
 
 \subsection{裁剪}
-\indent Cohen-Sutherland算法:\ 这个算法的特别之处在于位运算的思想,用4位二进制数表示左右上下四个位置的是否. 接着再分类讨论不同情况下线段裁剪时, 就可以用位运算来判断怎么裁剪线段. 它会重复裁剪直到线段完全在窗口内或者完全在窗口外.
+\subsubsection{Cohen-Sutherland算} 
+这个算法的特别之处在于位运算的思想,用4位二进制数表示左右上下四个位置的是否. 接着再分类讨论不同情况下线段裁剪时, 就可以用位运算来判断怎么裁剪线段. 它会重复裁剪直到线段完全在窗口内或者完全在窗口外.
 代码参考\cite{cohen_web}.\\
-\indent liang-Barskey算法:\ 这个算法不同于Cohen-Sutherland算法, 它希望一步直接将线段裁剪出来, 而不是重复裁剪.
+\subsubsection{Liang-Barskey算法法} 
+这个算法不同于Cohen-Sutherland算法, 它希望一步直接将线段裁剪出来, 而不是重复裁剪.
 它用$P=P_1+u*(P2-P1)$来表示直线P, 并分情况判断和裁剪窗口相交点处的$u_1,u_2$值, 根据$u_1,u_2$的情况来判断结果.
 代码参考\cite{liang_web}和ppt.
 
 \section{系统介绍}
+\subsection{CLI框架}
+\subsection{GUI框架}
 gui部分中目前仍按原始代码用QListWidget记录图元, 能鼠标控制两种算法绘制线段,
 多边形的鼠标绘制尚未完成.\\
 画笔颜色选择参考了\cite{pyqt5_ch}, 画笔颜色选择应在绘制图元之前\\
@@ -81,18 +96,17 @@ gui绘制多边形也实现了,最后一条边离起始点5$\times$5范围内闭
 缩放基本的实现思路和旋转一致.\\
 裁剪后,如果线段什么点也没剩下,仍然保留QListWiget中该图元,但是无法对其进行任何操作\\
 \section{总结}
-暂时防忘:
-\indent 1.画布的宽是[0, width-1],高是[0, height-1]\\
-
-\indent 2.gui中sys.exit(app.exec\_())改为app.exec\_(),自己手动退出,不然Spyder运行手动退出时会报错.
-此外,还得加上del app,不然重新运行的时候也会有点问题.
-参考\cite{exit}\\
-
-\indent 3.框架代码是鼠标一动就将MyItem中的图元绘制,
-这导致绘制直线的时候直线随着拖动不断绘制,这包括了最开始端点重合的情况,
-对于DDA会出现除0错误,因此要特判.\\
-
-\indent 画笔颜色选择分两步,一个是会用QColorDialog调出调色版,另一个是要将画笔颜色传给MyItem,我选择用全局变量g\_penColor.\\
+\subsection{遇到的一些问题}
+\begin{itemize}
+	\item gui中sys.exit(app.exec\_())改为app.exec\_(),自己手动退出,不然Spyder运行手动退出时会报错.
+	此外,还得加上del app,不然重新运行的时候也会有点问题.参考\cite{exit}
+	
+	\item 框架代码是鼠标一动就将MyItem中的图元绘制,
+	这导致绘制直线的时候直线随着拖动不断绘制,这包括了最开始端点重合的情况,
+	对于DDA会出现除0错误,因此要特判.
+	
+	\item 画笔颜色选择分两步,一个是会用QColorDialog调出调色版,另一个是要将画笔颜色传给MyItem,我用全局变量g\_penColor传递.
+\end{itemize}
 
 \bibliographystyle{plain}%
 %"xxx" should be your citing file's name.

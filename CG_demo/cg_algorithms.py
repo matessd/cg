@@ -266,17 +266,16 @@ def draw_curve(p_list, algorithm):
         # assign k, k是阶数, k-1是次数
         k = 4 # 4阶
         if k>n+1:
+            # 调整次数
             k = n+1
         def linspace(start, stop, num):
+            """给出[start,stop)均分为num份后的num个点"""
             result = []
             step = (stop - start)/num
             for i in range(num):
                 result.append(start+i*step)
             return result
         T = linspace(1,10,n+k+1) # T 范围1到10，均匀B样条曲线
-        # if n >= k-1:
-        #     T = [1]*k+(np.linspace(2,9,n-k+1)).tolist()+[10]*k # 准均匀样条
-
         # 递推公式
         # def de_Boor(r,t,i):
         #     if r == 0:
@@ -284,37 +283,35 @@ def draw_curve(p_list, algorithm):
         #     else:
         #         return ((t-T[i])/(T[i+k-r]-T[i]))*de_Boor(r-1,t,i)\
         #               +((T[i+k-r]-t)/(T[i+k-r]-T[i]))*de_Boor(r-1,t,i-1)
-        def de_Boor_x(r,t,i):
+        def de_Boor(r,t,i):
             if r == 0:
-                return p_list[i][0]
+                return [p_list[i][0], p_list[i][1]]
             else:
                 if t-T[i] == 0 and T[i+k-r]- T[i]!= 0:
-                    return ((T[i+k-r]-t)/(T[i+k-r]-T[i]))*de_Boor_x(r-1,t,i-1)
+                    return [((T[i+k-r]-t)/(T[i+k-r]-T[i]))* x\
+                            for x in de_Boor(r-1,t,i-1)]
                 elif T[i+k-r]-t == 0 and T[i+k-r]-T[i] != 0:
-                    return ((t-T[i])/(T[i+k-r]-T[i]))*de_Boor_x(r-1,t,i)
+                    return [((t-T[i])/(T[i+k-r]-T[i]))*x\
+                            for x in de_Boor(r-1,t,i)]
                 elif T[i+k-r]-T[i] == 0:
-                    return 0
-                return ((t-T[i])/(T[i+k-r]-T[i]))*de_Boor_x(r-1,t,i)\
-                    +((T[i+k-r]-t)/(T[i+k-r]-T[i]))*de_Boor_x(r-1,t,i-1)
-        def de_Boor_y(r,t,i):
-            if r == 0:
-                return p_list[i][1]
-            else:
-                if t-T[i] == 0 and T[i+k-r]- T[i]!= 0:
-                    return ((T[i+k-r]-t)/(T[i+k-r]-T[i]))*de_Boor_x(r-1,t,i-1)
-                elif T[i+k-r]-t == 0 and T[i+k-r]-T[i] != 0:
-                    return ((t-T[i])/(T[i+k-r]-T[i]))*de_Boor_x(r-1,t,i)
-                elif t-T[i] == 0 and T[i+k-r]-t == 0:
-                    return 0
-                return ((t-T[i])/(T[i+k-r]-T[i]))*de_Boor_y(r-1,t,i)\
-                    +((T[i+k-r]-t)/(T[i+k-r]-T[i]))*de_Boor_y(r-1,t,i-1)
+                    return [0, 0]
+                poi1 = de_Boor(r-1,t,i)
+                poi2 = de_Boor(r-1,t,i-1)
+                a = ((t-T[i])/(T[i+k-r]-T[i]))
+                b = ((T[i+k-r]-t)/(T[i+k-r]-T[i]))
+                x = a*poi1[0] + b*poi2[0]
+                y = a*poi1[1] + b*poi2[1]
+                return [x, y]
         def plot(posList):
             vertex = []
-            for j in range(k-1,n+1):
-                for t in linspace(T[j],T[j+1],30):
-                    if t==T[j] or t==T[j+1]:
+            for i in range(k-1,n+1):
+                # 每段取100个点
+                for t in linspace(T[i],T[i+1],100):
+                    if t==T[i] or t==T[i+1]:
                         continue
-                    vertex.append([int(de_Boor_x(k-1,t,j)),int(de_Boor_y(k-1,t,j))])
+                    [x, y] = de_Boor(k-1,t,i)
+                    if [x, y] not in vertex:
+                        vertex.append([int(x), int(y)])
             le = len(vertex)
             #return vertex
             for i in range(le-1):
