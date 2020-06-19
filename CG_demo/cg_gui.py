@@ -83,6 +83,13 @@ class MyCanvas(QGraphicsView):
         self.status = status
         self.temp_algorithm = algorithm
         self.temp_id = self.main_window.get_id()
+        
+    def start_edit(self, status, algorithm):
+        self.check_finish()
+        global g_draw_finish
+        g_draw_finish = 0
+        self.status = status
+        self.temp_algorithm = algorithm
     
     def finish_draw(self):
         global g_draw_finish
@@ -208,6 +215,7 @@ class MyCanvas(QGraphicsView):
                 x_max = x
             return x_max
 
+        # 缩放画布功能
         if self.is_image_scaling > 0:    
             global g_width, g_height
             if self.is_image_scaling == 1:  
@@ -233,33 +241,24 @@ class MyCanvas(QGraphicsView):
                 else:
                     self.temp_item.p_list[-2] = [x, y]
         
-        if self.is_image_scaling == 0:
-            move_draw()
-            if self.status == 'translate':
-                if self.selected_id == '':
-                    return
-                sid = self.selected_id
-                self.item_dict[sid].trans_type = 'translate'
-                self.item_dict[sid].poi = [x,y]  
-                # self.item_dict[sid].trans_over = 0
+        def move_edit():
+            if self.selected_id == '':
+                return
+            sid = self.selected_id
+            if self.status in ['translate','clip']:
+                self.item_dict[sid].trans_type = self.status
+                self.item_dict[sid].poi = [x,y]
             elif self.status == 'rotate' or self.status == 'scale':
-                if self.selected_id == '':
-                    return
-                sid = self.selected_id
                 if self.item_dict[sid].param_cnt == 1:
                     pass
                 elif self.item_dict[sid].param_cnt == 2:
                     self.item_dict[sid].poi1 = [x,y]                
                 else:
                     self.item_dict[sid].trans_clear()
-            elif self.status == 'clip':
-                if self.selected_id == '':
-                    return
-                if self.item_dict[self.selected_id].item_type != 'line':
-                    return
-                sid = self.selected_id
-                self.item_dict[sid].trans_type = 'clip'
-                self.item_dict[sid].poi = [x,y]  
+        
+        if self.is_image_scaling == 0:
+            move_draw()
+            move_edit()
         self.updateScene([self.sceneRect()])
         #self.updateScene([self.temp_item.boundingRect()])
         super().mouseMoveEvent(event)
@@ -735,31 +734,29 @@ class MainWindow(QMainWindow):
     
     # 平移
     def translate_action(self):
-        self.canvas_widget.status = 'translate'
+        self.canvas_widget.start_edit('translate','default')
         self.statusBar().showMessage('平移选中图元')
         self.canvas_widget.selectedItemClear()
         
     # 旋转
     def rotate_action(self):
-        self.canvas_widget.status = 'rotate'
+        self.canvas_widget.start_edit('rotate','default')
         self.statusBar().showMessage('旋转选中图元')
         self.canvas_widget.selectedItemClear()
     
     # 缩放
     def scale_action(self):
-        self.canvas_widget.status = 'scale'
+        self.canvas_widget.start_edit('scale','default')
         self.statusBar().showMessage('缩放选中图元')
         self.canvas_widget.selectedItemClear()
         
     def clip_cohen_sutherland_action(self):
-        self.canvas_widget.status = 'clip'
-        self.canvas_widget.temp_algorithm = 'Cohen-Sutherland'
+        self.canvas_widget.start_edit('clip','Cohen-Sutherland')
         self.statusBar().showMessage('Cohen-Sutherland算法裁剪线段')
         self.canvas_widget.selectedItemClear() 
         
     def clip_liang_barsky_action(self):
-        self.canvas_widget.status = 'clip'
-        self.canvas_widget.temp_algorithm = 'Liang-Barsky'
+        self.canvas_widget.start_edit('clip','Liang-Barsky')
         self.statusBar().showMessage('Liang-Barsky算法裁剪线段')
         self.canvas_widget.selectedItemClear()
     
