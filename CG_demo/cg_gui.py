@@ -30,6 +30,12 @@ g_width = g_height = 600
 global g_draw_finish
 g_draw_finish = 1
 global g_list_widget
+# global g_window
+global g_canvas
+global g_draw_status
+g_draw_status = ["line","ellipse", "polygon","curve"]
+global g_edit_status
+g_edit_status = ['translate','rotate','scale','clip']
 
 class MyCanvas(QGraphicsView):
     """
@@ -133,41 +139,36 @@ class MyCanvas(QGraphicsView):
             self.is_image_scaling = 1  
         elif g_height-5 <= y <= g_height+5:  
             self.is_image_scaling = 2
-
-        if self.is_image_scaling == 0:
-            if self.status == 'line' or self.status == 'ellipse':
+        
+        def press_draw():
+            global g_draw_status
+            if self.status not in g_draw_status:
+                return
+            if self.temp_item.id != self.main_window.get_id():
                 self.temp_item = MyItem(self.temp_id, self.status, \
                                         [[x, y], [x, y]], self.temp_algorithm)
                 self.scene().addItem(self.temp_item)
-            elif self.status == 'polygon':
-                if self.temp_item.id != self.main_window.get_id():
-                    self.temp_item = MyItem(self.temp_id, self.status, \
-                                            [[x, y], [x, y]], self.temp_algorithm)
-                    self.scene().addItem(self.temp_item)          
-                else:
+            else:
+                # needs more than two points
+                if self.status == 'polygon':
                     self.temp_item.p_list.append([x,y])
-            elif self.status == 'curve':
-                if self.temp_item.id != self.main_window.get_id():
-                    self.temp_item = MyItem(self.temp_id, self.status, \
-                                            [[x, y], [x, y]], self.temp_algorithm)
-                    self.scene().addItem(self.temp_item)          
-                else:
-                    """if self.temp_algorithm == 'B-spline':
-                        self.temp_item.p_list.append([x,y])   
-                    else :"""
-                    self.temp_item.p_list.insert(-1, [x,y])   
-            elif self.status == 'translate':
-                if self.selected_id == '':
-                    return
-                sid = self.selected_id
-                self.item_dict[sid].trans_type = 'translate'
+                elif self.status == 'curve':
+                    self.temp_item.p_list.insert(-1, [x,y])
+        
+        def press_edit():
+            if self.selected_id == '' or self.status not in g_edit_status:
+                return
+            sid = self.selected_id
+            if self.status in ['translate','clip']:
+                if self.status == 'clip' \
+                        and self.item_dict[sid].item_type != 'line':
+                    return 
+                self.item_dict[sid].trans_type = self.status
                 self.item_dict[sid].center = [x,y]
                 self.item_dict[sid].poi = [x,y]
+                self.item_dict[sid].trans_algorithm = self.temp_algorithm
                 self.item_dict[sid].trans_over = 0
-            elif self.status == 'rotate' or self.status == 'scale':
-                if self.selected_id == '':
-                    return
-                sid = self.selected_id
+            elif self.status in ['rotate', 'scale']:
                 if self.item_dict[sid].param_cnt == 0:
                     self.item_dict[sid].trans_type = self.status
                     self.item_dict[sid].center = [x,y]
@@ -179,18 +180,12 @@ class MyCanvas(QGraphicsView):
                     self.item_dict[sid].param_cnt = 2
                 else:
                     # cannot appear this situation, clear
-                    self.item_dict[sid].trans_clear()
-            elif self.status == 'clip':
-                if self.selected_id == '':
-                    return
-                sid = self.selected_id
-                if self.item_dict[self.selected_id].item_type != 'line':
-                    return
-                self.item_dict[sid].trans_type = 'clip'
-                self.item_dict[sid].trans_algorithm = self.temp_algorithm
-                self.item_dict[sid].center = [x,y]
-                self.item_dict[sid].poi = [x,y]
-                self.item_dict[sid].trans_over = 0
+                    print("error, rotate or scale not over")
+        
+        # draw or edit
+        if self.is_image_scaling == 0:
+            press_draw()
+            press_edit()
         self.updateScene([self.sceneRect()])
         #self.updateScene([self.temp_item.boundingRect()])
         super().mousePressEvent(event)
@@ -201,6 +196,7 @@ class MyCanvas(QGraphicsView):
         y = int(pos.y())
         
         def get_real_bound(x):
+            """得到不超过限制的真实边界"""
             x_max = 600
             if x>=1000:
                 x_max = 1000
@@ -209,7 +205,7 @@ class MyCanvas(QGraphicsView):
             else:
                 x_max = x
             return x_max
-        
+
         if self.is_image_scaling > 0:    
             global g_width, g_height
             if self.is_image_scaling == 1:  
@@ -222,10 +218,11 @@ class MyCanvas(QGraphicsView):
             self.scene().setSceneRect(0, 0, g_width, g_height)
             self.setFixedSize(g_width+10, g_height+10)
             self.main_window.resize(g_width, g_height)
-        else:
-            if self.status == 'line' or self.status == 'ellipse':
-                self.temp_item.p_list[1] = [x, y]
-            elif self.status == 'polygon':
+        
+        def move_draw():
+            if self.status not in g_draw_status:
+                return
+            if self.status in ['line','ellipse','polygon']:
                 self.temp_item.p_list[-1] = [x, y]
             elif self.status == 'curve':
                 le = len(self.temp_item.p_list)
@@ -233,7 +230,10 @@ class MyCanvas(QGraphicsView):
                     self.temp_item.p_list[-1] = [x, y]
                 else:
                     self.temp_item.p_list[-2] = [x, y]
-            elif self.status == 'translate':
+        
+        if self.is_image_scaling == 0:
+            move_draw()
+            if self.status == 'translate':
                 if self.selected_id == '':
                     return
                 sid = self.selected_id
@@ -263,7 +263,7 @@ class MyCanvas(QGraphicsView):
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
-        def if_close(pos0, pos1):
+        def is_close(pos0, pos1):
             """
             判断两个点是否足够近,用于多边形的闭合
             """
@@ -274,7 +274,8 @@ class MyCanvas(QGraphicsView):
         
         if self.is_image_scaling >0:
             self.is_image_scaling = 0
-        else:
+        
+        if self.is_image_scaling == 0:
             # main
             if self.status == 'line' or self.status == 'ellipse':
                 self.item_dict[self.temp_id] = self.temp_item
@@ -286,7 +287,7 @@ class MyCanvas(QGraphicsView):
                     self.item_dict[self.temp_id] = self.temp_item
                     self.list_widget.addItem(self.status+" "+self.temp_id)
                 elif len(self.temp_item.p_list)>=4 and\
-                    if_close(self.temp_item.p_list[0], self.temp_item.p_list[-1]):
+                    is_close(self.temp_item.p_list[0], self.temp_item.p_list[-1]):
                 #finish draw polygon
                     #[-1] and [0] refer to the same vertex
                     self.temp_item.p_list[-1] = self.temp_item.p_list[0]
@@ -349,9 +350,10 @@ class MyItem(QGraphicsItem):
         self.selected = False
         
         self.penColor = g_penColor  # 自己的penColor
+        self.pixels = []
         # for transformation
         self.trans_type = ''
-        self.trans_algorithm = ''
+        self.trans_algorithm = '' # used only for clip
         self.poi = [0,0] # [x,y] of move
         self.center = [0,0] # [x,y] of center
         self.trans_over = 0 # if the transformation operation over
@@ -364,29 +366,30 @@ class MyItem(QGraphicsItem):
         self.poi = [0,0]
         self.trans_over = 0   
         self.param_cnt = 0
+    
+    def trans_finish(self, new_p_list):
+        self.trans_clear()
+        self.p_list = new_p_list
+        
+    def get_draw_pixels(self, p_list, algorithm):
+        # draw figure
+        result = []
+        if self.item_type == 'line':
+            result = alg.draw_line(p_list, algorithm)
+        elif self.item_type == 'polygon':
+            # 画边
+            for i in range(0,len(p_list)-1):
+                result.extend(alg.draw_line([p_list[i],\
+                            p_list[i+1]], algorithm))
+        elif self.item_type == 'ellipse':
+            result = alg.draw_ellipse(p_list)
+        elif self.item_type == 'curve':
+            result = alg.draw_curve(p_list, algorithm)  
+        return result
         
     #gui会在鼠标事件自动调用paint重新绘制所有图元
-    def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: Optional[QWidget] = ...) -> None:
-        item_pixels = []
-        if self.p_list == []:
-            # 裁剪后的线段如果空了就直接返回
-            return
-        def draw(p_list, algorithm):
-            # draw figure
-            result = []
-            if self.item_type == 'line':
-                result = alg.draw_line(p_list, algorithm)
-            elif self.item_type == 'polygon':
-                # 画边
-                for i in range(0,len(p_list)-1):
-                    result.extend(alg.draw_line([p_list[i],\
-                                p_list[i+1]], algorithm))
-            elif self.item_type == 'ellipse':
-                result = alg.draw_ellipse(p_list)
-            elif self.item_type == 'curve':
-                result = alg.draw_curve(p_list, algorithm)  
-            return result
-        
+    def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, \
+              widget: Optional[QWidget] = ...) -> None:
         def angle(v1, v2):
             """计算v2相对于v1的顺时针角度
             v1 = [[x0,y0],[x1,y1]], v2同理
@@ -409,16 +412,18 @@ class MyItem(QGraphicsItem):
             painter.drawPoint(*[poi[0]-1,poi[1]+1])
             painter.drawPoint(*[poi[0]-1,poi[1]-1])
         
-        # choose p_list accoring to trans_type
+        if self.p_list == []:
+            # 裁剪后的线段如果空了就直接返回
+            return
+        
+        # change p_list accoring to trans_type
         new_p_list = self.p_list
         if self.trans_type == 'translate':
             new_p_list = alg.translate(self.p_list, self.poi[0]-self.center[0], \
                                         self.poi[1]-self.center[1])
             if self.trans_over == 1:
-                # clear
-                self.trans_clear()
-                # chang p_list
-                self.p_list = new_p_list
+                # finish
+                self.trans_finish(new_p_list)
         elif self.trans_type == 'rotate':
             if self.item_type == 'ellipse':
                 print("Can't rotate ellipse")
@@ -430,9 +435,7 @@ class MyItem(QGraphicsItem):
                                 self.center[0], self.center[1], theta)
             if self.trans_over == 1:
                 # clear
-                self.trans_clear()
-                # chang p_list
-                self.p_list = new_p_list      
+                self.trans_finish(new_p_list)
         elif self.trans_type == 'scale':
             if self.param_cnt == 2:
                 # 缩放倍数, 根据dx的比值确定
@@ -443,10 +446,7 @@ class MyItem(QGraphicsItem):
                 new_p_list = alg.scale(self.p_list, \
                                 self.center[0], self.center[1], s)
             if self.trans_over == 1:
-                # clear
-                self.trans_clear()
-                # chang p_list
-                self.p_list = new_p_list    
+                self.trans_finish(new_p_list)
         elif self.trans_type == 'clip':
             if self.trans_over == 0:
                 # draw the clip window
@@ -456,7 +456,7 @@ class MyItem(QGraphicsItem):
                                 self.poi[0], self.poi[1], self.trans_algorithm)
                 if tmp_p_list != []:
                     # highlight the line in clip window
-                    tmp_pixels = draw(tmp_p_list,self.algorithm)
+                    tmp_pixels = self.get_draw_pixels(tmp_p_list,self.algorithm)
                     painter.setPen(QColor(255, 0, 0))
                     for p in tmp_pixels:
                         thick_draw_point(painter, p)
@@ -464,16 +464,22 @@ class MyItem(QGraphicsItem):
                 # 得到裁剪后的端点
                 new_p_list = alg.clip(self.p_list, self.center[0], self.center[1],\
                                 self.poi[0], self.poi[1], self.trans_algorithm)
-                # clear
-                self.trans_clear()
-                # change p_list
-                self.p_list = new_p_list
+                self.trans_finish(new_p_list)
+                if self.p_list == []:
+                    # 线段被裁剪没了
+                    return
+        """
+        if self.id == g_canvas.cur_id:
+            pass"""
+        
+        item_pixels = []
         if new_p_list != []:
-            item_pixels = draw(new_p_list, self.algorithm)
+            item_pixels = self.get_draw_pixels(new_p_list, self.algorithm)
         else :
+            print("error")
             # 只可能是线段被裁剪没了
             # g_list_widget.takeItem(int(self.id))
-            self.trans_type = 'deleted'
+            # self.trans_type = 'deleted'
             return 
         # draw
         painter.setPen(self.penColor)
@@ -482,7 +488,7 @@ class MyItem(QGraphicsItem):
         # draw bound
         if self.selected:
             painter.setPen(QColor(255, 0, 0))
-            painter.drawRect(self.regionRect(new_p_list))  
+            painter.drawRect(self.regionRect(new_p_list))
     
     #绘制item时所需范围
     def boundingRect(self) -> QRectF:
@@ -540,6 +546,8 @@ class MainWindow(QMainWindow):
         self.scene = QGraphicsScene(self)
         self.scene.setSceneRect(0, 0, g_width, g_height)
         self.canvas_widget = MyCanvas(self.scene, self)
+        global g_canvas
+        g_canvas = self.canvas_widget
         #self.canvas_widget.setMinimumSize(600, 600)
         # self.canvas_widget.adjustSize()
         self.canvas_widget.setFixedSize(g_width+10, g_height+10)
@@ -698,15 +706,6 @@ class MainWindow(QMainWindow):
         global g_penColor
         color = QColorDialog.getColor()
         g_penColor = color
-    
-    """    
-    #绘制线段
-    def line_naive_action(self):
-        self.canvas_widget.start_draw_line('Naive', self.get_id())
-        self.statusBar().showMessage('Naive算法绘制线段')
-        self.list_widget.clearSelection()
-        self.canvas_widget.clear_selection()   
-    """
     
     #DDA绘制线段    
     def line_dda_action(self):

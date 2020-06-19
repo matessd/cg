@@ -206,6 +206,9 @@ elif g_height-5 <= y <= g_height+5:
 	对于DDA会出现除0错误,因此要特判.
 	
 	\item 画笔颜色选择分两步,一个是会用QColorDialog调出调色版,另一个是要将画笔颜色传给MyItem,我用全局变量g\_penColor传递.
+	
+	\item
+	多边形没画完就edit不会自动终止
 \end{itemize}
 
 \bibliographystyle{plain}%
