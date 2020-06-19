@@ -30,7 +30,7 @@ g_width = g_height = 600
 global g_draw_finish
 g_draw_finish = 1
 global g_list_widget
-# global g_window
+global g_window
 global g_canvas
 global g_draw_status
 g_draw_status = ["line","ellipse", "polygon","curve"]
@@ -91,6 +91,7 @@ class MyCanvas(QGraphicsView):
         self.temp_id = self.main_window.get_id()
         
     def check_finish(self):
+        global g_draw_finish
         if g_draw_finish == 1:
             return 
         # finish the last item
@@ -161,7 +162,8 @@ class MyCanvas(QGraphicsView):
             sid = self.selected_id
             if self.status in ['translate','clip']:
                 if self.status == 'clip' \
-                        and self.item_dict[sid].item_type != 'line':
+                and self.item_dict[sid].item_type != 'line':
+                    g_window.statusBar().showMessage('不能裁剪非线段')
                     return 
                 self.item_dict[sid].trans_type = self.status
                 self.item_dict[sid].center = [x,y]
@@ -278,56 +280,35 @@ class MyCanvas(QGraphicsView):
         def release_draw():
             if self.status not in g_draw_status:
                 return
-            if self.status in ['line', 'ellipse', 'curve']:
-                if self.temp_id not in self.item_dict:
-                    self.item_dict[self.temp_id] = self.temp_item
-                    self.list_widget.addItem(self.status+" "+self.temp_id)
-                else :
-                    if self.status
-                self.finish_draw()
-            elif self.status == 'polygon':
-                if self.temp_id not in self.item_dict:
-                    #add into item_dict
-                    self.item_dict[self.temp_id] = self.temp_item
-                    self.list_widget.addItem(self.status+" "+self.temp_id)
-                elif len(self.temp_item.p_list)>=4 and\
-                    is_close(self.temp_item.p_list[0], self.temp_item.p_list[-1]):
+            if self.temp_id not in self.item_dict:
+                self.item_dict[self.temp_id] = self.temp_item
+                self.list_widget.addItem(self.status+" "+self.temp_id)
+            else :
+                if self.status == 'polygon' and len(self.temp_item.p_list)>=4\
+                and is_close(self.temp_item.p_list[0], self.temp_item.p_list[-1]):
                     #finish draw polygon
                     #[-1] and [0] refer to the same vertex
                     self.temp_item.p_list[-1] = self.temp_item.p_list[0]
                     self.finish_draw()
-                    self.updateScene([self.sceneRect()])
         
-        if self.is_image_scaling == 0:
-            if self.status == 'translate':
-                if self.selected_id == '':
-                    return
-                sid = self.selected_id
-                # change item p_list
+        def release_edit():
+            if self.selected_id == '':
+                return
+            sid = self.selected_id
+            if self.status in ['translate', 'clip']:
                 self.item_dict[sid].trans_over = 1
-                # updateScene是super()时执行的
-                self.updateScene([self.sceneRect()])
             elif self.status == 'rotate' or self.status == 'scale':
-                if self.selected_id == '':
-                    return
-                sid = self.selected_id
                 if self.item_dict[sid].param_cnt == 1:
                     pass
                 elif self.item_dict[sid].param_cnt == 2:
                     self.item_dict[sid].trans_over = 1               
                 else:
                     self.item_dict[sid].trans_clear()
-                self.updateScene([self.sceneRect()])
-            elif self.status == 'clip':
-                if self.selected_id == '':
-                    return
-                if self.item_dict[self.selected_id].item_type != 'line':
-                    return
-                sid = self.selected_id
-                # change item p_list
-                self.item_dict[sid].trans_over = 1
-                # updateScene是super()时执行的
-                self.updateScene([self.sceneRect()])
+        
+        if self.is_image_scaling == 0:
+            release_draw()
+            release_edit()
+        self.updateScene([self.sceneRect()])
         super().mouseReleaseEvent(event)
 
 
@@ -412,6 +393,7 @@ class MyItem(QGraphicsItem):
             painter.drawPoint(*[poi[0]+1,poi[1]-1])
             painter.drawPoint(*[poi[0]-1,poi[1]+1])
             painter.drawPoint(*[poi[0]-1,poi[1]-1])
+            return
         
         if self.p_list == []:
             # 裁剪后的线段如果空了就直接返回
@@ -685,7 +667,17 @@ class MainWindow(QMainWindow):
         painter.end()
         # save bmp file
         pixmap.save(fname[0])    
-    
+        
+    #从QColorDialog中选取颜色,并设置为pen的颜色
+    def pen_color_change(self):
+        self.statusBar().showMessage('设置画笔颜色')
+        self.list_widget.clearSelection()
+        self.canvas_widget.clear_selection() 
+        # 设置画笔颜色也会令前一个没完成图形完成
+        self.canvas_widget.check_finish()
+        global g_penColor
+        g_penColor = QColorDialog.getColor()
+
     def get_id(self):
         _id = str(self.item_cnt)
         #self.item_cnt += 1
@@ -696,17 +688,6 @@ class MainWindow(QMainWindow):
     
     def reset_id(self):
         self.item_cnt = 0
-     
-    #从QColorDialog中选取颜色,并设置为pen的颜色
-    def pen_color_change(self):
-        self.statusBar().showMessage('设置画笔颜色')
-        self.list_widget.clearSelection()
-        self.canvas_widget.clear_selection() 
-        # 设置画笔颜色也会令前一个没完成图形完成
-        self.canvas_widget.check_finish()
-        global g_penColor
-        color = QColorDialog.getColor()
-        g_penColor = color
     
     #DDA绘制线段    
     def line_dda_action(self):
@@ -787,6 +768,8 @@ if __name__ == '__main__':
     # print(dir(MyItem))
     #print(dir(QToolBar))
     mw = MainWindow()
+    global g_window
+    g_window = mw
     mw.show()
     app.exec_()
     del app
