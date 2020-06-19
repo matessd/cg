@@ -275,30 +275,31 @@ class MyCanvas(QGraphicsView):
         if self.is_image_scaling >0:
             self.is_image_scaling = 0
         
-        if self.is_image_scaling == 0:
-            # main
-            if self.status == 'line' or self.status == 'ellipse':
-                self.item_dict[self.temp_id] = self.temp_item
-                self.list_widget.addItem(self.status+" "+self.temp_id)
+        def release_draw():
+            if self.status not in g_draw_status:
+                return
+            if self.status in ['line', 'ellipse', 'curve']:
+                if self.temp_id not in self.item_dict:
+                    self.item_dict[self.temp_id] = self.temp_item
+                    self.list_widget.addItem(self.status+" "+self.temp_id)
+                else :
+                    if self.status
                 self.finish_draw()
             elif self.status == 'polygon':
                 if self.temp_id not in self.item_dict:
-                #add into item_dict
+                    #add into item_dict
                     self.item_dict[self.temp_id] = self.temp_item
                     self.list_widget.addItem(self.status+" "+self.temp_id)
                 elif len(self.temp_item.p_list)>=4 and\
                     is_close(self.temp_item.p_list[0], self.temp_item.p_list[-1]):
-                #finish draw polygon
+                    #finish draw polygon
                     #[-1] and [0] refer to the same vertex
                     self.temp_item.p_list[-1] = self.temp_item.p_list[0]
                     self.finish_draw()
                     self.updateScene([self.sceneRect()])
-            elif self.status == 'curve':
-                if self.temp_id not in self.item_dict:
-                #add into item_dict
-                    self.item_dict[self.temp_id] = self.temp_item
-                    self.list_widget.addItem(self.status+" "+self.temp_id)    
-            elif self.status == 'translate':
+        
+        if self.is_image_scaling == 0:
+            if self.status == 'translate':
                 if self.selected_id == '':
                     return
                 sid = self.selected_id
