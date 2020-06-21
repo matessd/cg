@@ -234,7 +234,8 @@ for i in range(g_list_widget.count()):
 6.修正了重置画布时输入奇怪字符,导致之后text转换成int报错的问题,具体办法是不用int()函数,而是自己写atoi函数.\\
 7.修正了连续绘制多个多边形时,由于第一个完成后g\_draw\_finish等于1,最后一个多边形如果没完成就做别的事,不会自动补上最后一边的bug.\\
 8.QListWidget是根据currentTextChanged来切换item的,这就导致如果就一个item,选中一次后,这时如果进行别的操作时clearSelection,再点这个item就选不中了,因为它认为你的text没有变化.因此clearSelection前要setCurrentRow(-1).\\
-
+9.限制鼠标点击事件的点在[0,g\_width], [0,g\_height]之间, 不然经常往外拖就会崩溃.\\
+10.QInputDialog.getText()在重置一遍后,clip几下,调用就会崩溃,发现把自己遍历clear scene改为调用默认的clear就好了.\\
 \bibliographystyle{plain}%
 %"xxx" should be your citing file's name.
 \bibliography{cgref}

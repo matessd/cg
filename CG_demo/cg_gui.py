@@ -54,6 +54,16 @@ def atoi(s):
             num += j * (10 ** i)
    return num
 
+def get_limit_pos(x, is_x):
+    limit = g_width if is_x else g_height
+    if x<0:
+        xout = 0
+    elif x>limit:
+        xout = limit
+    else:
+        xout =x
+    return xout
+
 class MyCanvas(QGraphicsView):
     """
     画布窗体类，继承自QGraphicsView，采用QGraphicsView、QGraphicsScene、QGraphicsItem的绘图框架
@@ -79,7 +89,10 @@ class MyCanvas(QGraphicsView):
     def clear_canvas(self):
         #clear
         self.list_widget.clear()
-        self.clear_scene()
+        # self.clear_scene()
+        self.scene().clear()
+        # print(self.list_widget.items())
+        # print(self.scene().items())
         self.main_window.reset_id()
         self.item_dict = {}
         self.selected_id = ''
@@ -89,15 +102,15 @@ class MyCanvas(QGraphicsView):
         self.temp_id = '-1'
         self.cur_id = ''
         self.temp_item = MyItem(self.temp_id, 'noneType', \
-                                    [[0, 0], [0, 0]], 'noneAlg')      
+                                    [[0, 0], [0, 0]], 'noneAlg')
         global g_draw_finish
         g_draw_finish = 1
         global g_penColor
         g_penColor = QColor(0,0,0)
     
-    def clear_scene(self):
+    """def clear_scene(self):
         for item in self.scene().items():
-            self.scene().removeItem(item)
+            self.scene().removeItem(item)"""
     
     def start_draw(self, status, algorithm):
         self.check_finish()
@@ -182,6 +195,9 @@ class MyCanvas(QGraphicsView):
         pos = self.mapToScene(event.localPos().toPoint())
         x = int(pos.x())
         y = int(pos.y())
+        x = get_limit_pos(x, 1)
+        y = get_limit_pos(y, 0)
+        print("press:",[x,y])
         self.cur_id = ''
         
         # choose item by clicking canvas
@@ -212,6 +228,7 @@ class MyCanvas(QGraphicsView):
                     break
         
         # 点击边界外附近时拖动画布
+        self.is_image_scaling = 0
         if g_width-5 <= x <= g_width+5 and g_height-5 <= y <= g_height+5:
             self.is_image_scaling = 3  
         elif g_width-5 <= x <= g_width+5:  
@@ -282,31 +299,33 @@ class MyCanvas(QGraphicsView):
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
         pos = self.mapToScene(event.localPos().toPoint())
-        x = int(pos.x())
-        y = int(pos.y())
+        xin = int(pos.x())
+        yin = int(pos.y())
+        x = get_limit_pos(xin, 1)
+        y = get_limit_pos(yin, 0)
         
-        def get_real_bound(x):
+        def get_real_bound(x_in):
             """得到不超过限制的真实边界"""
-            x_max = 600
-            if x>=1000:
-                x_max = 1000
-            elif x<=100:
-                x_max = 100
+            x_out = 600
+            if x_in>=1000:
+                x_out = 1000
+            elif x_in<=100:
+                x_out = 100
             else:
-                x_max = x
-            return x_max
+                x_out = x_in
+            return x_out
 
         # 缩放画布功能
         if self.is_image_scaling > 0:
             global g_width, g_height
             if self.is_image_scaling == 1:  
-                g_width = get_real_bound(x)
+                g_width = get_real_bound(xin)
             elif self.is_image_scaling == 2:
-                g_height = get_real_bound(y)
+                g_height = get_real_bound(yin)
             else:  
-                g_width = get_real_bound(x)
-                g_height = get_real_bound(y)
-            self.resize(g_width+10, g_height+10)
+                g_width = get_real_bound(xin)
+                g_height = get_real_bound(yin)
+            self.setFixedSize(g_width+10, g_height+10)
             self.scene().setSceneRect(0, 0, g_width, g_height)
             self.main_window.resize(g_width, g_height)
         
@@ -345,9 +364,12 @@ class MyCanvas(QGraphicsView):
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
-        
-        if self.is_image_scaling >0:
-            self.is_image_scaling = 0
+        pos = self.mapToScene(event.localPos().toPoint())
+        x = int(pos.x())
+        y = int(pos.y())
+        x = get_limit_pos(x, 1)
+        y = get_limit_pos(y, 0)
+        print([x,y])
         
         def release_draw():
             if self.status not in g_draw_status:
@@ -385,6 +407,9 @@ class MyCanvas(QGraphicsView):
         if self.is_image_scaling == 0:
             release_draw()
             release_edit()
+
+        if self.is_image_scaling >0:
+            self.is_image_scaling = 0
         self.updateScene([self.sceneRect()])
         super().mouseReleaseEvent(event)
 
@@ -475,8 +500,8 @@ class MyItem(QGraphicsItem):
             return
         
         if self.p_list == []:
-            del g_canvas.item_dict[self.id]
-            g_canvas.scene().removeItem(self)
+            # del g_canvas.item_dict[self.id]
+            # g_canvas.scene().removeItem(self)
             # print("Undefined Behavior: Empty line should be deleted")
             return
         
@@ -536,8 +561,9 @@ class MyItem(QGraphicsItem):
                     self.item_type = 'delete'
                     self.pixels = []
                     g_list_widget.takeItem(g_list_widget.currentRow())
-                    # g_canvas.clear_selection()
-                    # del g_canvas.item_dict[self.id]
+                    # print(g_canvas.item_dict)
+                    g_canvas.clear_selection()
+                    del g_canvas.item_dict[self.id]
                     # g_canvas.scene().removeItem(self)
                     return
         
@@ -715,7 +741,9 @@ class MainWindow(QMainWindow):
     #clear and resize canvas
     def reset_canvas(self):
         self.statusBar().showMessage('重置画布')
+        print(1)
         self.canvas_widget.clear_canvas()
+        print(2)
         #resize
         text1,ok1 = QInputDialog.getText(self, '输入画布尺寸', 'x轴大小:')
         text2,ok2 = QInputDialog.getText(self, '输入画布尺寸', 'y轴大小:')
@@ -726,7 +754,7 @@ class MainWindow(QMainWindow):
         if x>1000 or x<100 or y>1000 or y<100:
             print("x and y must in [100,1000], please input again.")
             return
-        self.canvas_widget.resize(x+10, y+10)
+        self.canvas_widget.setFixedSize(x+10, y+10)
         self.scene.setSceneRect(0, 0, x, y)
         self.resize(x, y)
         global g_width, g_height
