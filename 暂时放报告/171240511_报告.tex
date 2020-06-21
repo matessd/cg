@@ -212,6 +212,10 @@ elif g_height-5 <= y <= g_height+5:
 2.添加了不能裁剪非线段的提示.\\
 3.对于当前不在修改中的图元,记录下它的所有像素点,update的时候就不再用算法生成,这避免了曲线太多时卡顿的情况.\\
 4.添加了点击画布选择图元, 试图使用QGraphicsScene的itemAt方法,发现两个item重叠多的时候很难选,于是改成记录图元的所有点,与鼠标点击的坐标逐一比对.\\
+5.优化了下GUI中鼠标点击事件的分支代码,使其更为精简.\\
+6.修正了重置画布时输入奇怪字符,导致之后text转换成int报错的问题,具体办法是不用int()函数,而是自己写atoi函数.\\
+7.修正了连续绘制多个多边形时,由于第一个完成后g\_draw\_finish等于1,最后一个多边形如果没完成就做别的事,不会自动补上最后一边的bug.\\
+
 \bibliographystyle{plain}%
 %"xxx" should be your citing file's name.
 \bibliography{cgref}

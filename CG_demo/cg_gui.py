@@ -45,6 +45,15 @@ def is_close(pos0, pos1):
     else :
         return False
 
+def atoi(s):
+   s = s[::-1]
+   num = 0
+   for i, v in enumerate(s):
+      for j in range(0, 10):
+         if v == str(j):
+            num += j * (10 ** i)
+   return num
+
 class MyCanvas(QGraphicsView):
     """
     画布窗体类，继承自QGraphicsView，采用QGraphicsView、QGraphicsScene、QGraphicsItem的绘图框架
@@ -121,7 +130,8 @@ class MyCanvas(QGraphicsView):
         if self.status == 'polygon':
             # 多边形没画完就去干别的了
             if self.temp_item.p_list[0] != self.temp_item.p_list[-1]:
-                self.temp_item.p_list.append(self.temp_item.p_list[0])
+                tmp_p_list = self.temp_item.p_list[0][:]
+                self.temp_item.p_list.append(tmp_p_list)
                 self.updateScene([self.sceneRect()])
         self.finish_draw()
         
@@ -323,12 +333,15 @@ class MyCanvas(QGraphicsView):
                 self.list_widget.addItem(self.status+" : "+self.temp_id)
                 if self.status in ['line','ellipse']:
                     self.finish_draw()
+                if self.status == 'polygon':
+                    global g_draw_finish
+                    g_draw_finish = 0
             else :
-                if self.status == 'polygon' and len(self.temp_item.p_list)>=4\
+                if self.status == 'polygon'\
                 and is_close(self.temp_item.p_list[0], self.temp_item.p_list[-1]):
-                    #finish draw polygon
-                    #[-1] and [0] refer to the same vertex
-                    self.temp_item.p_list[-1] = self.temp_item.p_list[0]
+                    # finish draw polygon
+                    # [-1] and [0] refer to the same vertex
+                    self.temp_item.p_list[-1] = self.temp_item.p_list[0][:]
                     self.finish_draw()
         
         def release_edit():
@@ -452,8 +465,7 @@ class MyItem(QGraphicsItem):
         elif self.edit_type == 'rotate':
             if self.item_type == 'ellipse':
                 # g_window.statusBar().clearMessage()
-                # g_window.statusBar().showMessage('不能旋转椭圆')
-                print("Can't rotate ellipse")
+                print("Can't rotate ellipse.")
                 self.edit_finish(self.p_list)
             else:
                 if self.param_cnt == 2:
@@ -506,7 +518,7 @@ class MyItem(QGraphicsItem):
                 item_pixels = self.pixels
         else :
             print("Undefined Behavior")
-            # 只可能是线段被裁剪没了
+            # 线段被裁剪没了的话不该到这一步
             # g_list_widget.takeItem(int(self.id))
             # self.edit_type = 'deleted'
             return 
@@ -679,10 +691,10 @@ class MainWindow(QMainWindow):
         text2,ok2 = QInputDialog.getText(self, '输入画布尺寸', 'y轴大小:')
         if ok1!=1 or ok2!=1:
             return
-        x = int(text1)
-        y = int(text2)
+        x = atoi(text1)
+        y = atoi(text2)
         if x>1000 or x<100 or y>1000 or y<100:
-            print("Resize Error: x>1000 or x<100 or y>1000 or y<100.")
+            print("x and y must in [100,1000], please input again.")
             return
         self.canvas_widget.setFixedSize(x+10, y+10)
         self.scene.setSceneRect(0, 0, x, y)
