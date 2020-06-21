@@ -20,7 +20,7 @@ from PyQt5.QtWidgets import (
     QAction,QToolBar)
 from PyQt5.QtGui import (
     QPainter, QMouseEvent, QColor, QPixmap,QTransform)
-from PyQt5.QtCore import QRectF, Qt, QItemSelection,QSignalBlocker,QMimeData
+from PyQt5.QtCore import QRectF, Qt,QSignalBlocker
 
 global g_penColor #used when set pencolor
 g_penColor = QColor(0,0,0) #black
@@ -79,6 +79,7 @@ class MyCanvas(QGraphicsView):
     def clear_canvas(self):
         #clear
         self.list_widget.clear()
+        self.clear_scene()
         self.main_window.reset_id()
         self.item_dict = {}
         self.selected_id = ''
@@ -93,7 +94,10 @@ class MyCanvas(QGraphicsView):
         g_draw_finish = 1
         global g_penColor
         g_penColor = QColor(0,0,0)
-        self.scene().clear()
+    
+    def clear_scene(self):
+        for item in self.scene().items():
+            self.scene().removeItem(item)
     
     def start_draw(self, status, algorithm):
         self.check_finish()
@@ -123,6 +127,11 @@ class MyCanvas(QGraphicsView):
         self.temp_id = self.main_window.get_id()
         
     def check_finish(self):
+        """for key_id in list(self.item_dict.keys()):
+            item = self.item_dict[key_id]
+            if item.item_type == 'delete':
+                self.scene().removeItem(item)
+                del self.item_dict[key_id]"""
         global g_draw_finish
         if g_draw_finish == 1:
             return 
@@ -141,7 +150,8 @@ class MyCanvas(QGraphicsView):
             g_list_widget.setCurrentRow(-1)"""
         self.list_widget.clearSelection()
         if self.selected_id != '':
-            self.item_dict[self.selected_id].selected = False
+            if self.selected_id in self.item_dict.keys():
+                self.item_dict[self.selected_id].selected = False
             self.selected_id = ''
 
     def selection_changed(self, selected):
@@ -149,8 +159,10 @@ class MyCanvas(QGraphicsView):
         self.main_window.statusBar().clearMessage()
         self.main_window.statusBar().showMessage('图元选择： %s' % selected)
         if self.selected_id != '':
-            self.item_dict[self.selected_id].selected = False
-            self.item_dict[self.selected_id].update()
+            if self.selected_id in self.item_dict.keys():
+                self.item_dict[self.selected_id].selected = False
+                self.item_dict[self.selected_id].update()
+            self.selected_id = ''
         strList = selected.split()
         if strList == []:
             # 重置画布的时候也会进入这个函数
@@ -195,7 +207,7 @@ class MyCanvas(QGraphicsView):
                 widget_item = g_list_widget.item(i)
                 strList = widget_item.text().split()
                 if(strList[-1] == id):
-                    blocker = QSignalBlocker(g_list_widget)
+                    QSignalBlocker(g_list_widget)
                     widget_item.setSelected(True)
                     break
         
@@ -252,7 +264,7 @@ class MyCanvas(QGraphicsView):
                     # cannot appear this situation, clear
                     print("error, rotate or scale not over")
             else:
-                print("Undefined Behavior")
+                print("Undefined Behavior: No such edit situation")
                 return ''
             return sid
         
@@ -285,7 +297,7 @@ class MyCanvas(QGraphicsView):
             return x_max
 
         # 缩放画布功能
-        if self.is_image_scaling > 0:    
+        if self.is_image_scaling > 0:
             global g_width, g_height
             if self.is_image_scaling == 1:  
                 g_width = get_real_bound(x)
@@ -294,8 +306,8 @@ class MyCanvas(QGraphicsView):
             else:  
                 g_width = get_real_bound(x)
                 g_height = get_real_bound(y)
+            self.resize(g_width+10, g_height+10)
             self.scene().setSceneRect(0, 0, g_width, g_height)
-            self.setFixedSize(g_width+10, g_height+10)
             self.main_window.resize(g_width, g_height)
         
         def move_draw():
@@ -463,7 +475,9 @@ class MyItem(QGraphicsItem):
             return
         
         if self.p_list == []:
-            print("Undefined Behavior")
+            del g_canvas.item_dict[self.id]
+            g_canvas.scene().removeItem(self)
+            # print("Undefined Behavior: Empty line should be deleted")
             return
         
         # change p_list accoring to edit_type
@@ -519,10 +533,12 @@ class MyItem(QGraphicsItem):
                 self.edit_finish(new_p_list)
                 if self.p_list == []:
                     # 线段被裁剪没了
+                    self.item_type = 'delete'
+                    self.pixels = []
                     g_list_widget.takeItem(g_list_widget.currentRow())
-                    g_canvas.clear_selection()
-                    del g_canvas.item_dict[self.id]
-                    g_canvas.scene().removeItem(self)
+                    # g_canvas.clear_selection()
+                    # del g_canvas.item_dict[self.id]
+                    # g_canvas.scene().removeItem(self)
                     return
         
         item_pixels = []
@@ -533,7 +549,7 @@ class MyItem(QGraphicsItem):
             else:
                 item_pixels = self.pixels
         else :
-            print("Undefined Behavior")
+            print("Undefined Behavior: new_p_list shouldn't be []")
             # 线段被裁剪没了的话不该到这一步
             return 
         # draw
@@ -604,9 +620,9 @@ class MainWindow(QMainWindow):
         self.canvas_widget = MyCanvas(self.scene, self)
         global g_canvas
         g_canvas = self.canvas_widget
-        #self.canvas_widget.setMinimumSize(600, 600)
-        # self.canvas_widget.adjustSize()
         self.canvas_widget.setFixedSize(g_width+10, g_height+10)
+        # self.canvas_widget.fitInView(self.scene.sceneRect(), Qt.KeepAspectRatio)
+        # self.setCentralWidget(self.canvas_widget)
         self.canvas_widget.main_window = self
         self.canvas_widget.list_widget = self.list_widget
 
@@ -710,7 +726,7 @@ class MainWindow(QMainWindow):
         if x>1000 or x<100 or y>1000 or y<100:
             print("x and y must in [100,1000], please input again.")
             return
-        self.canvas_widget.setFixedSize(x+10, y+10)
+        self.canvas_widget.resize(x+10, y+10)
         self.scene.setSceneRect(0, 0, x, y)
         self.resize(x, y)
         global g_width, g_height
@@ -750,7 +766,8 @@ class MainWindow(QMainWindow):
         # 设置画笔颜色也会令前一个没完成图形完成
         self.canvas_widget.check_finish()
         global g_penColor
-        g_penColor = QColorDialog.getColor()
+        color = QColorDialog.getColor()
+        g_penColor = color
 
     def choose_item(self):
         self.canvas_widget.choose_item()
@@ -833,7 +850,7 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     # print(dir(QGraphicsScene))
     # help(QListWidget.selectedIndexes)
-    # print(dir(QListWidget))
+    # print(dir(QGraphicsView))
     mw = MainWindow()
     global g_window
     g_window = mw
