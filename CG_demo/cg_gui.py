@@ -94,12 +94,18 @@ class MyCanvas(QGraphicsView):
         self.temp_algorithm = algorithm
         self.temp_id = self.main_window.get_id()
         
+    def selectedItemClear(self):
+        if self.selected_id == '':
+            return
+        self.item_dict[self.selected_id].edit_clear()
+        
     def start_edit(self, status, algorithm):
         self.check_finish()
         global g_draw_finish
         g_draw_finish = 0
         self.status = status
         self.temp_algorithm = algorithm
+        self.selectedItemClear()
     
     def finish_draw(self):
         global g_draw_finish
@@ -144,11 +150,6 @@ class MyCanvas(QGraphicsView):
         
     def choose_item(self):
         self.status = 'choose'
-        
-    def selectedItemClear(self):
-        if self.selected_id == '':
-            return
-        self.item_dict[self.selected_id].trans_clear()
         
     def mousePressEvent(self, event: QMouseEvent) -> None:
         pos = self.mapToScene(event.localPos().toPoint())
@@ -208,17 +209,18 @@ class MyCanvas(QGraphicsView):
                 if self.status == 'clip' \
                 and self.item_dict[sid].item_type != 'line':
                     g_window.statusBar().showMessage('不能裁剪非线段')
-                    return 
-                self.item_dict[sid].trans_type = self.status
-                self.item_dict[sid].center = [x,y]
-                self.item_dict[sid].poi = [x,y]
-                self.item_dict[sid].trans_algorithm = self.temp_algorithm
-                self.item_dict[sid].trans_over = 0
+                    self.status = ''
+                else:
+                    self.item_dict[sid].edit_type = self.status
+                    self.item_dict[sid].poi = [x,y]
+                    self.item_dict[sid].poi1 = [x,y]
+                    self.item_dict[sid].edit_algorithm = self.temp_algorithm
+                    self.item_dict[sid].edit_over = 0
             elif self.status in ['rotate', 'scale']:
                 if self.item_dict[sid].param_cnt == 0:
-                    self.item_dict[sid].trans_type = self.status
+                    self.item_dict[sid].edit_type = self.status
                     self.item_dict[sid].center = [x,y]
-                    self.item_dict[sid].trans_over = 0
+                    self.item_dict[sid].edit_over = 0
                     self.item_dict[sid].param_cnt = 1
                 elif self.item_dict[sid].param_cnt == 1:
                     self.item_dict[sid].poi = [x,y]
@@ -291,15 +293,15 @@ class MyCanvas(QGraphicsView):
                 return
             sid = self.selected_id
             if self.status in ['translate','clip']:
-                self.item_dict[sid].trans_type = self.status
-                self.item_dict[sid].poi = [x,y]
+                self.item_dict[sid].edit_type = self.status
+                self.item_dict[sid].poi1 = [x,y]
             elif self.status == 'rotate' or self.status == 'scale':
                 if self.item_dict[sid].param_cnt == 1:
                     pass
                 elif self.item_dict[sid].param_cnt == 2:
                     self.item_dict[sid].poi1 = [x,y]
                 else:
-                    self.item_dict[sid].trans_clear()
+                    self.item_dict[sid].edit_clear()
         
         if self.is_image_scaling == 0:
             move_draw()
@@ -334,14 +336,14 @@ class MyCanvas(QGraphicsView):
                 return
             sid = self.selected_id
             if self.status in ['translate', 'clip']:
-                self.item_dict[sid].trans_over = 1
+                self.item_dict[sid].edit_over = 1
             elif self.status == 'rotate' or self.status == 'scale':
                 if self.item_dict[sid].param_cnt == 1:
                     pass
                 elif self.item_dict[sid].param_cnt == 2:
-                    self.item_dict[sid].trans_over = 1               
+                    self.item_dict[sid].edit_over = 1               
                 else:
-                    self.item_dict[sid].trans_clear()
+                    self.item_dict[sid].edit_clear()
         
         if self.is_image_scaling == 0:
             release_draw()
@@ -370,25 +372,27 @@ class MyItem(QGraphicsItem):
         self.selected = False
         
         self.penColor = g_penColor  # 自己的penColor
-        self.pixels = []
-        # for transformation
-        self.trans_type = ''
-        self.trans_algorithm = '' # used only for clip
+        self.pixels = [] # 记录所有像素点
+        # for edit
+        self.edit_type = ''
+        self.edit_algorithm = '' # used only for clip
         self.poi = [0,0] # [x,y] of move
+        self.poi1 = [0,0]
         self.center = [0,0] # [x,y] of center
-        self.trans_over = 0 # if the transformation operation over
+        self.edit_over = 0 # if the transformation operation over
         self.param_cnt = 0 # some operation needs 2 mouse_press
         
-    def trans_clear(self):
-        self.trans_type = ''
-        self.trans_algorithm = ''
+    def edit_clear(self):
+        self.edit_type = ''
+        self.edit_algorithm = ''
         self.center = [0,0]
         self.poi = [0,0]
-        self.trans_over = 0   
+        self.poi1 = [0,0]
+        self.edit_over = 0
         self.param_cnt = 0
     
-    def trans_finish(self, new_p_list):
-        self.trans_clear()
+    def edit_finish(self, new_p_list):
+        self.edit_clear()
         self.p_list = new_p_list
         
     def get_draw_pixels(self, p_list, algorithm):
@@ -437,30 +441,30 @@ class MyItem(QGraphicsItem):
             # 裁剪后的线段如果空了就直接返回
             return
         
-        # change p_list accoring to trans_type
+        # change p_list accoring to edit_type
         new_p_list = self.p_list
-        if self.trans_type == 'translate':
-            new_p_list = alg.translate(self.p_list, self.poi[0]-self.center[0], \
-                                        self.poi[1]-self.center[1])
-            if self.trans_over == 1:
+        if self.edit_type == 'translate':
+            new_p_list = alg.translate(self.p_list, self.poi1[0]-self.poi[0], \
+                                        self.poi1[1]-self.poi[1])
+            if self.edit_over == 1:
                 # finish
-                self.trans_finish(new_p_list)
-        elif self.trans_type == 'rotate':
+                self.edit_finish(new_p_list)
+        elif self.edit_type == 'rotate':
             if self.item_type == 'ellipse':
                 # g_window.statusBar().clearMessage()
                 # g_window.statusBar().showMessage('不能旋转椭圆')
                 print("Can't rotate ellipse")
-                self.trans_finish(self.p_list)
+                self.edit_finish(self.p_list)
             else:
                 if self.param_cnt == 2:
                     # center and poi, poi1 all gotten
                     theta = angle([self.center, self.poi], [self.center, self.poi1])
                     new_p_list = alg.rotate(self.p_list, \
                                     self.center[0], self.center[1], theta)
-                if self.trans_over == 1:
+                if self.edit_over == 1:
                     # clear
-                    self.trans_finish(new_p_list)
-        elif self.trans_type == 'scale':
+                    self.edit_finish(new_p_list)
+        elif self.edit_type == 'scale':
             if self.param_cnt == 2:
                 # 缩放倍数, 根据dx的比值确定
                 if self.poi[0]-self.center[0] == 0:
@@ -469,26 +473,26 @@ class MyItem(QGraphicsItem):
                     s = (self.poi1[0]-self.center[0])/(self.poi[0]-self.center[0])
                 new_p_list = alg.scale(self.p_list, \
                                 self.center[0], self.center[1], s)
-            if self.trans_over == 1:
-                self.trans_finish(new_p_list)
-        elif self.trans_type == 'clip':
-            if self.trans_over == 0:
+            if self.edit_over == 1:
+                self.edit_finish(new_p_list)
+        elif self.edit_type == 'clip':
+            if self.edit_over == 0:
                 # draw the clip window
-                painter.setPen(QColor(255, 0, 0))
-                painter.drawRect( self.regionRect([self.center,self.poi]) )                 
-                tmp_p_list = alg.clip(self.p_list, self.center[0], self.center[1],\
-                                self.poi[0], self.poi[1], self.trans_algorithm)
+                painter.setPen(QColor(0,255,0))
+                painter.drawRect( self.regionRect([self.poi,self.poi1]) )                 
+                tmp_p_list = alg.clip(self.p_list, self.poi[0], self.poi[1],\
+                                self.poi1[0], self.poi1[1], self.edit_algorithm)
                 if tmp_p_list != []:
                     # highlight the line in clip window
                     tmp_pixels = self.get_draw_pixels(tmp_p_list,self.algorithm)
-                    painter.setPen(QColor(255, 0, 0))
+                    painter.setPen(QColor(0, 255, 0))
                     for p in tmp_pixels:
                         thick_draw_point(painter, p)
-            elif self.trans_over == 1:
+            elif self.edit_over == 1:
                 # 得到裁剪后的端点
-                new_p_list = alg.clip(self.p_list, self.center[0], self.center[1],\
-                                self.poi[0], self.poi[1], self.trans_algorithm)
-                self.trans_finish(new_p_list)
+                new_p_list = alg.clip(self.p_list, self.poi[0], self.poi[1],\
+                                self.poi1[0], self.poi1[1], self.edit_algorithm)
+                self.edit_finish(new_p_list)
                 if self.p_list == []:
                     # 线段被裁剪没了
                     return
@@ -504,7 +508,7 @@ class MyItem(QGraphicsItem):
             print("Undefined Behavior")
             # 只可能是线段被裁剪没了
             # g_list_widget.takeItem(int(self.id))
-            # self.trans_type = 'deleted'
+            # self.edit_type = 'deleted'
             return 
         # draw
         painter.setPen(self.penColor)
@@ -786,30 +790,25 @@ class MainWindow(QMainWindow):
     def translate_action(self):
         self.canvas_widget.start_edit('translate','default')
         self.statusBar().showMessage('平移选中图元')
-        self.canvas_widget.selectedItemClear()
         
     # 旋转
     def rotate_action(self):
         self.canvas_widget.start_edit('rotate','default')
         self.statusBar().showMessage('旋转选中图元')
-        self.canvas_widget.selectedItemClear()
     
     # 缩放
     def scale_action(self):
         self.canvas_widget.start_edit('scale','default')
         self.statusBar().showMessage('缩放选中图元')
-        self.canvas_widget.selectedItemClear()
     
     # 裁剪线段
     def clip_cohen_sutherland_action(self):
         self.canvas_widget.start_edit('clip','Cohen-Sutherland')
         self.statusBar().showMessage('Cohen-Sutherland算法裁剪线段')
-        self.canvas_widget.selectedItemClear() 
         
     def clip_liang_barsky_action(self):
         self.canvas_widget.start_edit('clip','Liang-Barsky')
         self.statusBar().showMessage('Liang-Barsky算法裁剪线段')
-        self.canvas_widget.selectedItemClear()
     
 if __name__ == '__main__':
     app = QApplication(sys.argv)
