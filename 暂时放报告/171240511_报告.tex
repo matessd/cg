@@ -209,7 +209,7 @@ elif g_height-5 <= y <= g_height+5:
 \end{itemize}
 1.多边形没画完就edit不会自动终止\\
 2.添加了不能裁剪非线段的提示\\
-
+3.添加了点击画布选择图元, 试图使用QGraphicsScene的itemAt方法,发现两个item重叠多的时候很难选,于是改成记录图元的所有点,与鼠标点击的坐标逐一比对
 \bibliographystyle{plain}%
 %"xxx" should be your citing file's name.
 \bibliography{cgref}

@@ -18,7 +18,8 @@ from PyQt5.QtWidgets import (
     QStyleOptionGraphicsItem,
     QColorDialog, QInputDialog, QFileDialog,
     QAction,QToolBar)
-from PyQt5.QtGui import QPainter, QMouseEvent, QColor, QPixmap
+from PyQt5.QtGui import (
+    QPainter, QMouseEvent, QColor, QPixmap,QTransform)
 from PyQt5.QtCore import QRectF, Qt
 
 global g_penColor #used when set pencolor
@@ -26,16 +27,23 @@ g_penColor = QColor(0,0,0) #black
 # size of canvas
 global g_width, g_height
 g_width = g_height = 600
-# if the last item is over
-global g_draw_finish
+# is_draw_finish, status
+global g_draw_finish, g_draw_status, g_edit_status
+# for access
+global g_list_widget, g_window, g_canvas
+global g_transform
+
 g_draw_finish = 1
-global g_list_widget
-global g_window
-global g_canvas
-global g_draw_status
 g_draw_status = ["line","ellipse", "polygon","curve"]
-global g_edit_status
 g_edit_status = ['translate','rotate','scale','clip']
+g_transform = QTransform()
+
+def is_close(pos0, pos1):
+    """判断两个点是否足够近,用于多边形的闭合和选择图元"""
+    if abs(pos0[0]-pos1[0])<=5 and abs(pos0[1]-pos1[1])<=5:
+        return True
+    else :
+        return False
 
 class MyCanvas(QGraphicsView):
     """
@@ -51,6 +59,7 @@ class MyCanvas(QGraphicsView):
         self.status = ''
         self.temp_algorithm = ''
         self.temp_id = '-1'
+        self.cur_id = ''
         #draw polygon need temp_item to judge start 
         self.temp_item = MyItem(self.temp_id, 'noneType', \
                                     [[0, 0], [0, 0]], 'noneAlg')
@@ -68,6 +77,7 @@ class MyCanvas(QGraphicsView):
         self.status = ''
         self.temp_algorithm = ''
         self.temp_id = '-1'
+        self.cur_id = ''
         self.temp_item = MyItem(self.temp_id, 'noneType', \
                                     [[0, 0], [0, 0]], 'noneAlg')      
         global g_draw_finish
@@ -127,8 +137,13 @@ class MyCanvas(QGraphicsView):
         self.selected_id = strList[-1]
         self.item_dict[self.selected_id].selected = True
         self.item_dict[self.selected_id].update()
-        self.status = ''
+        # can continously choose by click
+        if self.status != 'choose':
+            self.status = ''
         self.updateScene([self.sceneRect()])
+        
+    def choose_item(self):
+        self.status = 'choose'
         
     def selectedItemClear(self):
         if self.selected_id == '':
@@ -139,6 +154,27 @@ class MyCanvas(QGraphicsView):
         pos = self.mapToScene(event.localPos().toPoint())
         x = int(pos.x())
         y = int(pos.y())
+        self.cur_id = ''
+        
+        # choose item by clicking canvas
+        if self.status == 'choose':
+            # item = g_canvas.scene().itemAt(x, y, g_transform)
+            items = g_canvas.scene().items()
+            pos = [x,y]
+            # break_flg
+            b_flg = False
+            for item in items:
+                if b_flg:
+                    break
+                for coor in item.pixels:
+                    if is_close(coor, pos):
+                        b_flg = True
+                        self.selection_changed(item.id)
+                        break
+            
+            """if item is not None:
+                self.selection_changed(item.id)
+                # print(g_list_widget.currentItemChanged())"""
         
         # 点击边界外附近时拖动画布
         if g_width-5 <= x <= g_width+5 and g_height-5 <= y <= g_height+5:
@@ -151,7 +187,7 @@ class MyCanvas(QGraphicsView):
         def press_draw():
             global g_draw_status
             if self.status not in g_draw_status:
-                return
+                return ''
             if self.temp_item.id != self.main_window.get_id():
                 self.temp_item = MyItem(self.temp_id, self.status, \
                                         [[x, y], [x, y]], self.temp_algorithm)
@@ -162,10 +198,11 @@ class MyCanvas(QGraphicsView):
                     self.temp_item.p_list.append([x,y])
                 elif self.status == 'curve':
                     self.temp_item.p_list.insert(-1, [x,y])
+            return self.temp_item.id
         
         def press_edit():
             if self.selected_id == '' or self.status not in g_edit_status:
-                return
+                return ''
             sid = self.selected_id
             if self.status in ['translate','clip']:
                 if self.status == 'clip' \
@@ -190,11 +227,19 @@ class MyCanvas(QGraphicsView):
                 else:
                     # cannot appear this situation, clear
                     print("error, rotate or scale not over")
+            else:
+                print("Undefined Behavior")
+                return ''
+            return sid
         
         # draw or edit
         if self.is_image_scaling == 0:
-            press_draw()
-            press_edit()
+            dealing_id = press_draw()
+            if dealing_id != '':
+                self.cur_id = dealing_id
+            dealing_id = press_edit()
+            if dealing_id != '':
+                self.cur_id = dealing_id
         self.updateScene([self.sceneRect()])
         #self.updateScene([self.temp_item.boundingRect()])
         super().mousePressEvent(event)
@@ -252,7 +297,7 @@ class MyCanvas(QGraphicsView):
                 if self.item_dict[sid].param_cnt == 1:
                     pass
                 elif self.item_dict[sid].param_cnt == 2:
-                    self.item_dict[sid].poi1 = [x,y]                
+                    self.item_dict[sid].poi1 = [x,y]
                 else:
                     self.item_dict[sid].trans_clear()
         
@@ -264,14 +309,6 @@ class MyCanvas(QGraphicsView):
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
-        def is_close(pos0, pos1):
-            """
-            判断两个点是否足够近,用于多边形的闭合
-            """
-            if abs(pos0[0]-pos1[0])<=5 and abs(pos0[1]-pos1[1])<=5:
-                return True
-            else :
-                return False
         
         if self.is_image_scaling >0:
             self.is_image_scaling = 0
@@ -281,7 +318,9 @@ class MyCanvas(QGraphicsView):
                 return
             if self.temp_id not in self.item_dict:
                 self.item_dict[self.temp_id] = self.temp_item
-                self.list_widget.addItem(self.status+" "+self.temp_id)
+                self.list_widget.addItem(self.status+" : "+self.temp_id)
+                if self.status in ['line','ellipse']:
+                    self.finish_draw()
             else :
                 if self.status == 'polygon' and len(self.temp_item.p_list)>=4\
                 and is_close(self.temp_item.p_list[0], self.temp_item.p_list[-1]):
@@ -408,16 +447,19 @@ class MyItem(QGraphicsItem):
                 self.trans_finish(new_p_list)
         elif self.trans_type == 'rotate':
             if self.item_type == 'ellipse':
+                # g_window.statusBar().clearMessage()
+                # g_window.statusBar().showMessage('不能旋转椭圆')
                 print("Can't rotate ellipse")
-                return 
-            if self.param_cnt == 2:
-                # center and poi, poi1 all gotten
-                theta = angle([self.center, self.poi], [self.center, self.poi1])
-                new_p_list = alg.rotate(self.p_list, \
-                                self.center[0], self.center[1], theta)
-            if self.trans_over == 1:
-                # clear
-                self.trans_finish(new_p_list)
+                self.trans_finish(self.p_list)
+            else:
+                if self.param_cnt == 2:
+                    # center and poi, poi1 all gotten
+                    theta = angle([self.center, self.poi], [self.center, self.poi1])
+                    new_p_list = alg.rotate(self.p_list, \
+                                    self.center[0], self.center[1], theta)
+                if self.trans_over == 1:
+                    # clear
+                    self.trans_finish(new_p_list)
         elif self.trans_type == 'scale':
             if self.param_cnt == 2:
                 # 缩放倍数, 根据dx的比值确定
@@ -450,15 +492,16 @@ class MyItem(QGraphicsItem):
                 if self.p_list == []:
                     # 线段被裁剪没了
                     return
-        """
-        if self.id == g_canvas.cur_id:
-            pass"""
         
         item_pixels = []
         if new_p_list != []:
-            item_pixels = self.get_draw_pixels(new_p_list, self.algorithm)
+            if self.id == g_canvas.cur_id:
+                item_pixels = self.get_draw_pixels(new_p_list, self.algorithm)
+                self.pixels = item_pixels
+            else:
+                item_pixels = self.pixels
         else :
-            print("error")
+            print("Undefined Behavior")
             # 只可能是线段被裁剪没了
             # g_list_widget.takeItem(int(self.id))
             # self.trans_type = 'deleted'
@@ -521,6 +564,7 @@ class MainWindow(QMainWindow):
         # 注：这是图元选择的简单实现方法，更好的实现是在画布中直接用鼠标选择图元
         self.list_widget = QListWidget(self)
         self.list_widget.setMinimumWidth(200)
+        #self.list_widget.selectedIndexes
         global g_list_widget
         g_list_widget = self.list_widget
 
@@ -541,6 +585,7 @@ class MainWindow(QMainWindow):
         set_pen_act = menubar.addAction('设置画笔')
         reset_canvas_act = menubar.addAction('重置画布')
         save_canvas_act = menubar.addAction('保存画布')
+        choose_item_act = menubar.addAction('选择图元')
         exit_act = menubar.addAction('退出')
         
         # 设置绘图工具栏
@@ -581,6 +626,8 @@ class MainWindow(QMainWindow):
         reset_canvas_act.triggered.connect(self.reset_canvas)
         # 保存画布
         save_canvas_act.triggered.connect(self.save_canvas)
+        # 选择图元
+        choose_item_act.triggered.connect(self.choose_item)
         # 退出
         exit_act.triggered.connect(qApp.quit)
         # line
@@ -677,6 +724,9 @@ class MainWindow(QMainWindow):
         global g_penColor
         g_penColor = QColorDialog.getColor()
 
+    def choose_item(self):
+        self.canvas_widget.choose_item()
+        
     def get_id(self):
         _id = str(self.item_cnt)
         #self.item_cnt += 1
@@ -749,7 +799,8 @@ class MainWindow(QMainWindow):
         self.canvas_widget.start_edit('scale','default')
         self.statusBar().showMessage('缩放选中图元')
         self.canvas_widget.selectedItemClear()
-        
+    
+    # 裁剪线段
     def clip_cohen_sutherland_action(self):
         self.canvas_widget.start_edit('clip','Cohen-Sutherland')
         self.statusBar().showMessage('Cohen-Sutherland算法裁剪线段')
@@ -762,8 +813,9 @@ class MainWindow(QMainWindow):
     
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    # print(dir(MyItem))
+    #print(dir(QGraphicsScene))
     #print(dir(QToolBar))
+
     mw = MainWindow()
     global g_window
     g_window = mw
