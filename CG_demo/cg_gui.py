@@ -20,7 +20,7 @@ from PyQt5.QtWidgets import (
     QAction,QToolBar)
 from PyQt5.QtGui import (
     QPainter, QMouseEvent, QColor, QPixmap,QTransform)
-from PyQt5.QtCore import QRectF, Qt
+from PyQt5.QtCore import QRectF, Qt, QItemSelection,QSignalBlocker,QMimeData
 
 global g_penColor #used when set pencolor
 g_penColor = QColor(0,0,0) #black
@@ -136,12 +136,17 @@ class MyCanvas(QGraphicsView):
         self.finish_draw()
         
     def clear_selection(self):
+        # 避免只剩一个item的时候QListWidget无法两次选中
+        """if g_list_widget.count()==1:
+            g_list_widget.setCurrentRow(-1)"""
+        self.list_widget.clearSelection()
         if self.selected_id != '':
             self.item_dict[self.selected_id].selected = False
             self.selected_id = ''
 
     def selection_changed(self, selected):
         self.check_finish()
+        self.main_window.statusBar().clearMessage()
         self.main_window.statusBar().showMessage('图元选择： %s' % selected)
         if self.selected_id != '':
             self.item_dict[self.selected_id].selected = False
@@ -174,6 +179,8 @@ class MyCanvas(QGraphicsView):
             pos = [x,y]
             # break_flg
             b_flg = False
+            id = ''
+            # select in canvas
             for item in items:
                 if b_flg:
                     break
@@ -181,11 +188,16 @@ class MyCanvas(QGraphicsView):
                     if is_close(coor, pos):
                         b_flg = True
                         self.selection_changed(item.id)
+                        id = item.id
                         break
-            
-            """if item is not None:
-                self.selection_changed(item.id)
-                # print(g_list_widget.currentItemChanged())"""
+            # select in list_widget
+            for i in range(g_list_widget.count()):
+                widget_item = g_list_widget.item(i)
+                strList = widget_item.text().split()
+                if(strList[-1] == id):
+                    blocker = QSignalBlocker(g_list_widget)
+                    widget_item.setSelected(True)
+                    break
         
         # 点击边界外附近时拖动画布
         if g_width-5 <= x <= g_width+5 and g_height-5 <= y <= g_height+5:
@@ -451,7 +463,7 @@ class MyItem(QGraphicsItem):
             return
         
         if self.p_list == []:
-            # 裁剪后的线段如果空了就直接返回
+            print("Undefined Behavior")
             return
         
         # change p_list accoring to edit_type
@@ -507,6 +519,10 @@ class MyItem(QGraphicsItem):
                 self.edit_finish(new_p_list)
                 if self.p_list == []:
                     # 线段被裁剪没了
+                    g_list_widget.takeItem(g_list_widget.currentRow())
+                    g_canvas.clear_selection()
+                    del g_canvas.item_dict[self.id]
+                    g_canvas.scene().removeItem(self)
                     return
         
         item_pixels = []
@@ -519,8 +535,6 @@ class MyItem(QGraphicsItem):
         else :
             print("Undefined Behavior")
             # 线段被裁剪没了的话不该到这一步
-            # g_list_widget.takeItem(int(self.id))
-            # self.edit_type = 'deleted'
             return 
         # draw
         painter.setPen(self.penColor)
@@ -706,7 +720,6 @@ class MainWindow(QMainWindow):
     #保存画布
     def save_canvas(self):
         self.statusBar().showMessage('保存画布')
-        self.list_widget.clearSelection()
         self.canvas_widget.clear_selection() 
         # 令前一个没完成图形完成
         self.canvas_widget.check_finish()
@@ -733,7 +746,6 @@ class MainWindow(QMainWindow):
     #从QColorDialog中选取颜色,并设置为pen的颜色
     def pen_color_change(self):
         self.statusBar().showMessage('设置画笔颜色')
-        self.list_widget.clearSelection()
         self.canvas_widget.clear_selection() 
         # 设置画笔颜色也会令前一个没完成图形完成
         self.canvas_widget.check_finish()
@@ -758,44 +770,37 @@ class MainWindow(QMainWindow):
     def line_dda_action(self):
         self.canvas_widget.start_draw('line', 'DDA')
         self.statusBar().showMessage('DDA算法绘制线段')
-        self.list_widget.clearSelection()
         self.canvas_widget.clear_selection() 
         
     #Bresenham绘制线段
     def line_bresenham_action(self):
         self.canvas_widget.start_draw('line','Bresenham')
         self.statusBar().showMessage('Bresenham算法绘制线段')
-        self.list_widget.clearSelection()
         self.canvas_widget.clear_selection()
     
     def polygon_bresenham_action(self):
         self.canvas_widget.start_draw('polygon','Bresenham')
         self.statusBar().showMessage('Bresenham算法绘制多边形')
-        self.list_widget.clearSelection()
         self.canvas_widget.clear_selection()
         
     def polygon_dda_action(self):
         self.canvas_widget.start_draw('polygon','DDA')
         self.statusBar().showMessage('DDA算法绘制多边形')
-        self.list_widget.clearSelection()
         self.canvas_widget.clear_selection()
     
     def ellipse_action(self):
         self.canvas_widget.start_draw('ellipse','default')
         self.statusBar().showMessage('绘制椭圆')
-        self.list_widget.clearSelection()
         self.canvas_widget.clear_selection()      
         
     def curve_bezier_action(self):
         self.canvas_widget.start_draw('curve','Bezier')
         self.statusBar().showMessage('Bezier算法绘制曲线')
-        self.list_widget.clearSelection()
-        self.canvas_widget.clear_selection()       
+        self.canvas_widget.clear_selection()
         
     def curve_b_spline_action(self):
         self.canvas_widget.start_draw('curve','B-spline')
         self.statusBar().showMessage('B_spline算法绘制曲线')
-        self.list_widget.clearSelection()
         self.canvas_widget.clear_selection() 
     
     # 平移
@@ -816,17 +821,19 @@ class MainWindow(QMainWindow):
     # 裁剪线段
     def clip_cohen_sutherland_action(self):
         self.canvas_widget.start_edit('clip','Cohen-Sutherland')
+        self.statusBar().clearMessage()
         self.statusBar().showMessage('Cohen-Sutherland算法裁剪线段')
         
     def clip_liang_barsky_action(self):
         self.canvas_widget.start_edit('clip','Liang-Barsky')
+        self.statusBar().clearMessage()
         self.statusBar().showMessage('Liang-Barsky算法裁剪线段')
     
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    #print(dir(QGraphicsScene))
-    #print(dir(QToolBar))
-
+    # print(dir(QGraphicsScene))
+    # help(QListWidget.selectedIndexes)
+    # print(dir(QListWidget))
     mw = MainWindow()
     global g_window
     g_window = mw
