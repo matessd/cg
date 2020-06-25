@@ -17,10 +17,10 @@ from PyQt5.QtWidgets import (
     QWidget,
     QStyleOptionGraphicsItem,
     QColorDialog, QInputDialog, QFileDialog,
-    QAction,QToolBar)
+    QAction,QToolBar,QStyle,QProxyStyle)
 from PyQt5.QtGui import (
-    QPainter, QMouseEvent, QColor, QPixmap,QTransform)
-from PyQt5.QtCore import QRectF, Qt,QSignalBlocker
+    QPainter, QMouseEvent, QColor, QPixmap,QTransform,QIcon,QPalette)
+from PyQt5.QtCore import QRectF, Qt,QSignalBlocker,QSize
 
 global g_penColor #used when set pencolor
 g_penColor = QColor(0,0,0) #black
@@ -722,25 +722,47 @@ class MainWindow(QMainWindow):
 
         # 设置菜单栏
         menubar = self.menuBar()
-        set_pen_act = menubar.addAction('设置画笔')
-        reset_canvas_act = menubar.addAction('重置画布')
-        save_canvas_act = menubar.addAction('保存画布')
-        choose_item_act = menubar.addAction('选择图元')
-        delete_choose_act = menubar.addAction('删除图元')
-        copy_act = menubar.addAction('复制')
-        paste_act = menubar.addAction('粘贴')
-        exit_act = menubar.addAction('退出')
+        set_pen_act = QAction(QIcon('../icons/art-prices.png'),'color', self)
+        set_pen_act.setStatusTip('设置画笔颜色')
+        reset_canvas_act = QAction(QIcon('../icons/reset.png'),'reset', self)
+        reset_canvas_act.setStatusTip('重置画布')
+        save_canvas_act = QAction(QIcon('../icons/save.png'),'save', self)
+        save_canvas_act.setStatusTip('保存画布')
+        delete_choose_act = QAction(QIcon('../icons/delete.png'),'delete', self)
+        delete_choose_act.setStatusTip('删除选中图元')
+        copy_act = QAction(QIcon('../icons/copy.png'),'copy', self)
+        copy_act.setStatusTip('复制选中图元')
+        paste_act = QAction(QIcon('../icons/paste.png'),'paste', self)
+        paste_act.setStatusTip('粘贴已复制的图元')
+        exit_act = QAction(QIcon('../icons/exit.png'),'exit', self)
+        exit_act.setStatusTip('退出程序')
+        menubar.addAction(set_pen_act)
+        menubar.addAction(reset_canvas_act)
+        menubar.addAction(save_canvas_act)
+        menubar.addAction(delete_choose_act)
+        menubar.addAction(copy_act)
+        menubar.addAction(paste_act)
+        menubar.addAction(exit_act)
         
         # 设置绘图工具栏
-        line_dda_act = QAction('DDA线段', self)
-        line_bresenham_act = QAction('Bresenham线段', self)
-        dotted_line_act = QAction('虚线段', self)
-        polygon_dda_act = QAction('DDA多边形', self)
-        polygon_bresenham_act = QAction('Bresenham多边形', self)
-        ellipse_act = QAction('椭圆', self)
-        curve_bezier_act = QAction('Bezier曲线', self)
-        curve_b_spline_act = QAction('B-spline曲线', self)
+        line_dda_act = QAction(QIcon('../icons/line_d.png'),'DDA线段', self)
+        line_dda_act.setStatusTip('DDA算法绘制线段')
+        line_bresenham_act = QAction(QIcon('../icons/line_b.png'),'Bresenham线段', self)
+        line_bresenham_act.setStatusTip('Bresenham算法绘制线段')
+        dotted_line_act = QAction(QIcon('../icons/dotted_line.png'),'虚线段', self)
+        dotted_line_act.setStatusTip('绘制虚线段')
+        polygon_dda_act = QAction(QIcon('../icons/polygon_d.png'),'DDA多边形', self)
+        polygon_dda_act.setStatusTip('DDA算法绘制多边形')
+        polygon_bresenham_act = QAction(QIcon('../icons/polygon_b.png'),'Bresenham多边形', self)
+        polygon_bresenham_act.setStatusTip('Bresenham算法绘制多边形')
+        ellipse_act = QAction(QIcon('../icons/ellipse.png'),'椭圆', self)
+        ellipse_act.setStatusTip('绘制椭圆')
+        curve_bezier_act = QAction(QIcon('../icons/curve_be.png'),'Bezier曲线', self)
+        curve_bezier_act.setStatusTip('Bezier算法绘制曲线')
+        curve_b_spline_act = QAction(QIcon('../icons/curve_bs.png'),'B-spline曲线', self)
+        curve_b_spline_act.setStatusTip('B-spline算法绘制曲线')
         draw_toolbar = QToolBar('draw')
+        draw_toolbar.setIconSize(QSize(60,60))
         self.addToolBar(Qt.LeftToolBarArea, draw_toolbar)
         draw_toolbar.addAction(line_dda_act)
         draw_toolbar.addAction(line_bresenham_act)
@@ -753,16 +775,27 @@ class MainWindow(QMainWindow):
         
         # 设置编辑工具栏
         edit_toolbar = self.addToolBar('edit')
-        translate_act = QAction('平移', self)
-        rotate_act = QAction('旋转', self)
-        scale_act = QAction('缩放', self)
-        clip_cohen_sutherland_act = QAction('Cohen-Sutherland裁剪',self)
-        clip_liang_barsky_act = QAction('Liang-Barsky裁剪',self)
+        edit_toolbar.setIconSize(QSize(40,40))
+        translate_act = QAction(QIcon('../icons/move.png'),'平移', self)
+        translate_act.setStatusTip('平移')
+        rotate_act = QAction(QIcon('../icons/rotate.png'),'旋转', self)
+        rotate_act.setStatusTip('旋转')
+        scale_act = QAction(QIcon('../icons/scale.png'),'缩放', self)
+        scale_act.setStatusTip('缩放')
+        clip_cohen_sutherland_act = QAction(QIcon('../icons/clip_c.png'),\
+                                            'Cohen-Sutherland裁剪',self)
+        clip_cohen_sutherland_act.setStatusTip('Cohen-Sutherland算法裁剪线段')
+        clip_liang_barsky_act = QAction(QIcon('../icons/clip_l.png'),\
+                                        'Liang-Barsky裁剪',self)
+        clip_liang_barsky_act.setStatusTip('Liang-Barsky算法裁剪线段')
+        choose_item_act = QAction(QIcon('../icons/select.png'),'choose', self)
+        choose_item_act.setStatusTip('选择图元')
         edit_toolbar.addAction(translate_act)
         edit_toolbar.addAction(rotate_act)
         edit_toolbar.addAction(scale_act)
         edit_toolbar.addAction(clip_cohen_sutherland_act)
         edit_toolbar.addAction(clip_liang_barsky_act)
+        edit_toolbar.addAction(choose_item_act)
 
         # 连接信号和槽函数
         # 画笔
@@ -952,12 +985,32 @@ class MainWindow(QMainWindow):
         self.statusBar().clearMessage()
         self.statusBar().showMessage('Liang-Barsky算法裁剪线段')
     
+# Create a custom "QProxyStyle" to enlarge the QMenu icons
+#-----------------------------------------------------------
+class MyProxyStyle(QProxyStyle):
+    pass
+    def pixelMetric(self, QStyle_PixelMetric, option=None, widget=None):
+
+        if QStyle_PixelMetric == QStyle.PM_SmallIconSize:
+            return 40
+        else:
+            return QProxyStyle.pixelMetric(self, QStyle_PixelMetric, option, widget)
+    
 if __name__ == '__main__':
     app = QApplication(sys.argv)
+    # The proxy style should be based on an existing style,
+    # like 'Windows', 'Motif', 'Plastique', 'Fusion', ...
+    myStyle = MyProxyStyle('Fusion')
+    app.setStyle(myStyle)
     # print(dir(QGraphicsScene))
     # help(QListWidget.row)
     # print(dir(QListWidget.setCurrentIndex))
     mw = MainWindow()
+    palette1 = QPalette()
+    palette1.setColor(palette1.Background, QColor(236,240,241))
+    mw.setPalette(palette1)
+    #mw.setWindowOpacity(0.85)  # 设置窗口透明度
+    #mw.setAttribute(Qt.WA_TranslucentBackground)  # 设置窗口背景透明
     global g_window
     g_window = mw
     mw.show()
