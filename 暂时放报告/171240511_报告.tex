@@ -227,7 +227,6 @@ for i in range(g_list_widget.count()):
 \end{itemize}
 \subsection{6月更新}
 1.修正多边形没画完就edit不会自动终止的bug.\\
-2.添加了"不能裁剪非线段"的消息栏提示.\\
 3.对于当前不在修改中的图元,记录下它的所有像素点,update的时候就不再用算法生成,这避免了曲线太多时卡顿的情况.\\
 4.添加了点击画布选择图元, 试图使用QGraphicsScene的itemAt方法,发现两个item重叠多的时候很难选,于是改成记录图元的所有点,与鼠标点击的坐标逐一比对.\\
 5.优化了下GUI中鼠标点击事件的分支代码,使其更为精简.\\
@@ -236,6 +235,7 @@ for i in range(g_list_widget.count()):
 8.QListWidget是根据currentTextChanged来切换item的,这就导致如果就一个item,选中一次后,这时如果进行别的操作时clearSelection,再点这个item就选不中了,因为它认为你的text没有变化.因此clearSelection前要setCurrentRow(-1).\\
 9.限制鼠标点击事件的点在[0,g\_width], [0,g\_height]之间, 不然经常往外拖就会崩溃.\\
 10.QInputDialog.getText()在重置一遍后,clip几下,调用就会崩溃,发现把自己遍历clear scene改为调用默认的clear就好了.\\
+11.处理了图元超出边界的情况
 \bibliographystyle{plain}%
 %"xxx" should be your citing file's name.
 \bibliography{cgref}

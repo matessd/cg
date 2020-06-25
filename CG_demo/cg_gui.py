@@ -89,10 +89,8 @@ class MyCanvas(QGraphicsView):
     def clear_canvas(self):
         #clear
         self.list_widget.clear()
-        # self.clear_scene()
+        self.list_widget.addItem("clear selection")
         self.scene().clear()
-        # print(self.list_widget.items())
-        # print(self.scene().items())
         self.main_window.reset_id()
         self.item_dict = {}
         self.selected_id = ''
@@ -158,24 +156,22 @@ class MyCanvas(QGraphicsView):
         self.finish_draw()
         
     def clear_selection(self):
-        # 避免只剩一个item的时候QListWidget无法两次选中
-        """if g_list_widget.count()==1:
+        """# 避免只剩一个item的时候QListWidget无法两次选中
+        if g_list_widget.count()==1:
             g_list_widget.setCurrentRow(-1)"""
-        self.list_widget.clearSelection()
-        if self.selected_id != '':
-            if self.selected_id in self.item_dict.keys():
-                self.item_dict[self.selected_id].selected = False
-            self.selected_id = ''
-
-    def selection_changed(self, selected):
-        self.check_finish()
-        self.main_window.statusBar().clearMessage()
-        self.main_window.statusBar().showMessage('图元选择： %s' % selected)
         if self.selected_id != '':
             if self.selected_id in self.item_dict.keys():
                 self.item_dict[self.selected_id].selected = False
                 self.item_dict[self.selected_id].update()
             self.selected_id = ''
+
+    def selection_changed(self, selected):
+        self.check_finish()
+        self.clear_selection()
+        if selected == 'clear selection':
+            return
+        self.main_window.statusBar().clearMessage()
+        self.main_window.statusBar().showMessage('图元选择： %s' % selected)
         strList = selected.split()
         if strList == []:
             # 重置画布的时候也会进入这个函数
@@ -197,7 +193,6 @@ class MyCanvas(QGraphicsView):
         y = int(pos.y())
         x = get_limit_pos(x, 1)
         y = get_limit_pos(y, 0)
-        print("press:",[x,y])
         self.cur_id = ''
         
         # choose item by clicking canvas
@@ -219,10 +214,11 @@ class MyCanvas(QGraphicsView):
                         id = item.id
                         break
             # select in list_widget
-            for i in range(g_list_widget.count()):
+            for i in range(1, g_list_widget.count()):
                 widget_item = g_list_widget.item(i)
                 strList = widget_item.text().split()
                 if(strList[-1] == id):
+                    g_list_widget.setCurrentRow(i)
                     QSignalBlocker(g_list_widget)
                     widget_item.setSelected(True)
                     break
@@ -253,8 +249,11 @@ class MyCanvas(QGraphicsView):
             return self.temp_item.id
         
         def press_edit():
-            if self.selected_id == '' or self.status not in g_edit_status:
+            if self.status not in g_edit_status:
                 return ''
+            if self.selected_id == '':
+                print("请选择图元.")
+                return
             sid = self.selected_id
             if self.status in ['translate','clip']:
                 if self.status == 'clip' \
@@ -279,6 +278,8 @@ class MyCanvas(QGraphicsView):
                     self.item_dict[sid].param_cnt = 2
                 else:
                     # cannot appear this situation, clear
+                    item = self.item_dict[sid]
+                    print(item.id, item.param_cnt, item.p_list)
                     print("error, rotate or scale not over")
             else:
                 print("Undefined Behavior: No such edit situation")
@@ -364,12 +365,6 @@ class MyCanvas(QGraphicsView):
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
-        pos = self.mapToScene(event.localPos().toPoint())
-        x = int(pos.x())
-        y = int(pos.y())
-        x = get_limit_pos(x, 1)
-        y = get_limit_pos(y, 0)
-        print([x,y])
         
         def release_draw():
             if self.status not in g_draw_status:
@@ -443,6 +438,8 @@ class MyItem(QGraphicsItem):
         self.center = [0,0] # [x,y] of center
         self.edit_over = 0 # if the transformation operation over
         self.param_cnt = 0 # some operation needs 2 mouse_press
+        # 记录鼠标移动时显示的前一个p_list
+        self.old_p_list = p_list
         
     def edit_clear(self):
         self.edit_type = ''
@@ -455,6 +452,7 @@ class MyItem(QGraphicsItem):
     
     def edit_finish(self, new_p_list):
         self.edit_clear()
+        self.old_p_list = self.p_list
         self.p_list = new_p_list
         
     def get_draw_pixels(self, p_list, algorithm):
@@ -499,10 +497,17 @@ class MyItem(QGraphicsItem):
             painter.drawPoint(*[poi[0]-1,poi[1]-1])
             return
         
-        if self.p_list == []:
-            # del g_canvas.item_dict[self.id]
-            # g_canvas.scene().removeItem(self)
-            # print("Undefined Behavior: Empty line should be deleted")
+        def is_out_of_bound(p_list):
+            [x,y,w,h] = self.compute_region(p_list)
+            w = w+x
+            h = h+y
+            if x<0 or y<0 or w>g_width or h>g_height:
+                return True
+            else:
+                return False
+        
+        if self.p_list == [] or self.item_type == 'delete':
+            # be deleted
             return
         
         # change p_list accoring to edit_type
@@ -560,13 +565,17 @@ class MyItem(QGraphicsItem):
                     # 线段被裁剪没了
                     self.item_type = 'delete'
                     self.pixels = []
-                    g_list_widget.takeItem(g_list_widget.currentRow())
-                    # print(g_canvas.item_dict)
                     g_canvas.clear_selection()
+                    g_list_widget.takeItem(g_list_widget.currentRow())
                     del g_canvas.item_dict[self.id]
+                    #下面这句加了后,画布大小改变后再删除图元会崩溃
                     # g_canvas.scene().removeItem(self)
                     return
+        if is_out_of_bound(new_p_list):
+            # 超出边界时保持不变
+            new_p_list = self.old_p_list
         
+        self.old_p_list = new_p_list
         item_pixels = []
         if new_p_list != []:
             if self.id == g_canvas.cur_id:
@@ -577,7 +586,7 @@ class MyItem(QGraphicsItem):
         else :
             print("Undefined Behavior: new_p_list shouldn't be []")
             # 线段被裁剪没了的话不该到这一步
-            return 
+            return
         # draw
         painter.setPen(self.penColor)
         for p in item_pixels:
@@ -636,6 +645,7 @@ class MainWindow(QMainWindow):
         # 注：这是图元选择的简单实现方法，更好的实现是在画布中直接用鼠标选择图元
         self.list_widget = QListWidget(self)
         self.list_widget.setMinimumWidth(200)
+        self.list_widget.addItem("clear selection")
         #self.list_widget.selectedIndexes
         global g_list_widget
         g_list_widget = self.list_widget
@@ -741,9 +751,7 @@ class MainWindow(QMainWindow):
     #clear and resize canvas
     def reset_canvas(self):
         self.statusBar().showMessage('重置画布')
-        print(1)
         self.canvas_widget.clear_canvas()
-        print(2)
         #resize
         text1,ok1 = QInputDialog.getText(self, '输入画布尺寸', 'x轴大小:')
         text2,ok2 = QInputDialog.getText(self, '输入画布尺寸', 'y轴大小:')
@@ -764,7 +772,6 @@ class MainWindow(QMainWindow):
     #保存画布
     def save_canvas(self):
         self.statusBar().showMessage('保存画布')
-        self.canvas_widget.clear_selection() 
         # 令前一个没完成图形完成
         self.canvas_widget.check_finish()
         
@@ -790,7 +797,6 @@ class MainWindow(QMainWindow):
     #从QColorDialog中选取颜色,并设置为pen的颜色
     def pen_color_change(self):
         self.statusBar().showMessage('设置画笔颜色')
-        self.canvas_widget.clear_selection() 
         # 设置画笔颜色也会令前一个没完成图形完成
         self.canvas_widget.check_finish()
         global g_penColor
@@ -815,38 +821,31 @@ class MainWindow(QMainWindow):
     def line_dda_action(self):
         self.canvas_widget.start_draw('line', 'DDA')
         self.statusBar().showMessage('DDA算法绘制线段')
-        self.canvas_widget.clear_selection() 
         
     #Bresenham绘制线段
     def line_bresenham_action(self):
         self.canvas_widget.start_draw('line','Bresenham')
         self.statusBar().showMessage('Bresenham算法绘制线段')
-        self.canvas_widget.clear_selection()
     
     def polygon_bresenham_action(self):
         self.canvas_widget.start_draw('polygon','Bresenham')
         self.statusBar().showMessage('Bresenham算法绘制多边形')
-        self.canvas_widget.clear_selection()
         
     def polygon_dda_action(self):
         self.canvas_widget.start_draw('polygon','DDA')
         self.statusBar().showMessage('DDA算法绘制多边形')
-        self.canvas_widget.clear_selection()
     
     def ellipse_action(self):
         self.canvas_widget.start_draw('ellipse','default')
         self.statusBar().showMessage('绘制椭圆')
-        self.canvas_widget.clear_selection()      
         
     def curve_bezier_action(self):
         self.canvas_widget.start_draw('curve','Bezier')
         self.statusBar().showMessage('Bezier算法绘制曲线')
-        self.canvas_widget.clear_selection()
         
     def curve_b_spline_action(self):
         self.canvas_widget.start_draw('curve','B-spline')
         self.statusBar().showMessage('B_spline算法绘制曲线')
-        self.canvas_widget.clear_selection() 
     
     # 平移
     def translate_action(self):
@@ -877,8 +876,8 @@ class MainWindow(QMainWindow):
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     # print(dir(QGraphicsScene))
-    # help(QListWidget.selectedIndexes)
-    # print(dir(QGraphicsView))
+    # help(QListWidget.row)
+    # print(dir(QListWidget.setCurrentIndex))
     mw = MainWindow()
     global g_window
     g_window = mw
