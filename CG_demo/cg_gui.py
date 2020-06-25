@@ -32,11 +32,13 @@ global g_draw_finish, g_draw_status, g_edit_status
 # for access
 global g_list_widget, g_window, g_canvas
 global g_transform
+global g_copy_item # 复制功能
 
 g_draw_finish = 1
-g_draw_status = ["line","ellipse", "polygon","curve"]
+g_draw_status = ["dot_line","line","ellipse", "polygon","curve"]
 g_edit_status = ['translate','rotate','scale','clip']
 g_transform = QTransform()
+g_copy_item = None
 
 def is_close(pos0, pos1):
     """判断两个点是否足够近,用于多边形的闭合和选择图元"""
@@ -63,6 +65,16 @@ def get_limit_pos(x, is_x):
     else:
         xout =x
     return xout
+
+def copy_MyItem(src):
+    sid = src.id
+    status = src.item_type
+    p_list = src.p_list
+    algorithm = src.algorithm
+    item = MyItem(sid, status, p_list, algorithm)
+    item.pixels =  src.pixels[:]
+    item.penColor = src.penColor
+    return item
 
 class MyCanvas(QGraphicsView):
     """
@@ -138,11 +150,6 @@ class MyCanvas(QGraphicsView):
         self.temp_id = self.main_window.get_id()
         
     def check_finish(self):
-        """for key_id in list(self.item_dict.keys()):
-            item = self.item_dict[key_id]
-            if item.item_type == 'delete':
-                self.scene().removeItem(item)
-                del self.item_dict[key_id]"""
         global g_draw_finish
         if g_draw_finish == 1:
             return 
@@ -156,9 +163,6 @@ class MyCanvas(QGraphicsView):
         self.finish_draw()
         
     def clear_selection(self):
-        """# 避免只剩一个item的时候QListWidget无法两次选中
-        if g_list_widget.count()==1:
-            g_list_widget.setCurrentRow(-1)"""
         if self.selected_id != '':
             if self.selected_id in self.item_dict.keys():
                 self.item_dict[self.selected_id].selected = False
@@ -169,6 +173,7 @@ class MyCanvas(QGraphicsView):
         self.check_finish()
         self.clear_selection()
         if selected == 'clear selection':
+            self.updateScene([self.sceneRect()])
             return
         self.main_window.statusBar().clearMessage()
         self.main_window.statusBar().showMessage('图元选择： %s' % selected)
@@ -190,7 +195,7 @@ class MyCanvas(QGraphicsView):
     def delete_choose(self):
         self.check_finish()
         if self.selected_id == '':
-            print("请选中图元.")
+            print("删除请选中图元.")
             return
         sid = self.selected_id
         self.clear_selection()
@@ -202,7 +207,31 @@ class MyCanvas(QGraphicsView):
         item.pixels = []
         del self.item_dict[sid]
         self.updateScene([self.sceneRect()])
-        
+    
+    def copy_item(self):
+        self.check_finish()
+        if self.selected_id == '':
+            print("复制请选中图元.")
+            return
+        src_item = self.item_dict[self.selected_id]
+        global g_copy_item
+        g_copy_item = copy_MyItem(src_item)
+    
+    def paste_item(self):
+        self.check_finish()
+        if g_copy_item == None:
+            return
+        item = copy_MyItem(g_copy_item)
+        self.main_window.id_inc()
+        item.id = self.main_window.get_id()
+        self.add_item(item)
+    
+    def add_item(self, item):
+        self.scene().addItem(item)
+        self.item_dict[item.id] = item
+        self.list_widget.addItem(item.item_type+" : "+item.id)
+        self.updateScene([self.sceneRect()])
+    
     def mousePressEvent(self, event: QMouseEvent) -> None:
         pos = self.mapToScene(event.localPos().toPoint())
         x = int(pos.x())
@@ -347,7 +376,7 @@ class MyCanvas(QGraphicsView):
         def move_draw():
             if self.status not in g_draw_status:
                 return
-            if self.status in ['line','ellipse','polygon']:
+            if self.status in ['dot_line','line','ellipse','polygon']:
                 self.temp_item.p_list[-1] = [x, y]
             elif self.status == 'curve':
                 le = len(self.temp_item.p_list)
@@ -386,7 +415,7 @@ class MyCanvas(QGraphicsView):
             if self.temp_id not in self.item_dict:
                 self.item_dict[self.temp_id] = self.temp_item
                 self.list_widget.addItem(self.status+" : "+self.temp_id)
-                if self.status in ['line','ellipse']:
+                if self.status in ['dot_line','line','ellipse']:
                     self.finish_draw()
                 if self.status == 'polygon':
                     global g_draw_finish
@@ -438,7 +467,7 @@ class MyItem(QGraphicsItem):
         super().__init__(parent)
         self.id = item_id           # 图元ID
         self.item_type = item_type  # 图元类型，'line'、'polygon'、'ellipse'、'curve'等
-        self.p_list = p_list        # 图元参数
+        self.p_list = p_list[:]        # 图元参数
         self.algorithm = algorithm  # 绘制算法，'DDA'、'Bresenham'、'Bezier'、'B-spline'等
         self.selected = False
         
@@ -452,8 +481,6 @@ class MyItem(QGraphicsItem):
         self.center = [0,0] # [x,y] of center
         self.edit_over = 0 # if the transformation operation over
         self.param_cnt = 0 # some operation needs 2 mouse_press
-        # 记录鼠标移动时显示的前一个p_list
-        self.old_p_list = p_list[:]
         
     def edit_clear(self):
         self.edit_type = ''
@@ -474,6 +501,8 @@ class MyItem(QGraphicsItem):
         result = []
         if self.item_type == 'line':
             result = alg.draw_line(p_list, algorithm)
+        elif self.item_type == 'dot_line':
+            result = alg.draw_dotted_line(p_list)
         elif self.item_type == 'polygon':
             # 画边
             for i in range(0,len(p_list)-1):
@@ -485,7 +514,7 @@ class MyItem(QGraphicsItem):
             result = alg.draw_curve(p_list, algorithm)  
         return result
         
-    #gui会在鼠标事件自动调用paint重新绘制所有图元
+    #gui会在update自动调用paint重新绘制所有图元
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, \
               widget: Optional[QWidget] = ...) -> None:
         def angle(v1, v2):
@@ -531,7 +560,7 @@ class MyItem(QGraphicsItem):
         new_p_list = self.p_list
         if self.edit_type == 'translate':
             # 控制点
-            painter.setPen(QColor(0,0,255))
+            painter.setPen(QColor(255,0,255))
             paint_small_cycle(painter, [self.poi, self.poi1])
             paint_dotted_line(painter, [self.poi, self.poi1])
             
@@ -546,7 +575,7 @@ class MyItem(QGraphicsItem):
                 print("Can't rotate ellipse.")
                 self.edit_finish(self.p_list)
             else:
-                painter.setPen(QColor(0,0,255))
+                painter.setPen(QColor(255,0,255))
                 if self.param_cnt==1:
                     paint_small_cycle(painter, [self.center])
                 elif self.param_cnt == 2:
@@ -561,7 +590,7 @@ class MyItem(QGraphicsItem):
                     # clear
                     self.edit_finish(new_p_list)
         elif self.edit_type == 'scale':
-            painter.setPen(QColor(0,0,255))
+            painter.setPen(QColor(255,0,255))
             if self.param_cnt == 1:
                 paint_small_cycle(painter, [self.center])
             if self.param_cnt == 2:
@@ -639,7 +668,7 @@ class MyItem(QGraphicsItem):
         # 裁剪线段后可能出现p_list空的的图元
         if new_p_list == []:
             return [x,y,w,h]
-        if self.item_type == 'line' or self.item_type == 'ellipse':
+        if self.item_type in ['line','ellipse','dot_line']:
             x0, y0 = new_p_list[0]
             x1, y1 = new_p_list[1]
             x = min(x0, x1)
@@ -698,11 +727,14 @@ class MainWindow(QMainWindow):
         save_canvas_act = menubar.addAction('保存画布')
         choose_item_act = menubar.addAction('选择图元')
         delete_choose_act = menubar.addAction('删除图元')
+        copy_act = menubar.addAction('复制')
+        paste_act = menubar.addAction('粘贴')
         exit_act = menubar.addAction('退出')
         
         # 设置绘图工具栏
         line_dda_act = QAction('DDA线段', self)
         line_bresenham_act = QAction('Bresenham线段', self)
+        dotted_line_act = QAction('虚线段', self)
         polygon_dda_act = QAction('DDA多边形', self)
         polygon_bresenham_act = QAction('Bresenham多边形', self)
         ellipse_act = QAction('椭圆', self)
@@ -712,6 +744,7 @@ class MainWindow(QMainWindow):
         self.addToolBar(Qt.LeftToolBarArea, draw_toolbar)
         draw_toolbar.addAction(line_dda_act)
         draw_toolbar.addAction(line_bresenham_act)
+        draw_toolbar.addAction(dotted_line_act)
         draw_toolbar.addAction(polygon_dda_act)
         draw_toolbar.addAction(polygon_bresenham_act)
         draw_toolbar.addAction(ellipse_act)
@@ -741,12 +774,14 @@ class MainWindow(QMainWindow):
         # 选择图元
         choose_item_act.triggered.connect(self.choose_item)
         delete_choose_act.triggered.connect(self.delete_choose)
+        copy_act.triggered.connect(self.copy_action)
+        paste_act.triggered.connect(self.paste_action)
         # 退出
         exit_act.triggered.connect(qApp.quit)
         # line
-        #line_naive_act.triggered.connect(self.line_naive_action)
         line_dda_act.triggered.connect(self.line_dda_action)
         line_bresenham_act.triggered.connect(self.line_bresenham_action)
+        dotted_line_act.triggered.connect(self.dotted_line_action)
         # polygon
         polygon_dda_act.triggered.connect(self.polygon_dda_action)
         polygon_bresenham_act.triggered.connect(self.polygon_bresenham_action)
@@ -840,6 +875,12 @@ class MainWindow(QMainWindow):
     def delete_choose(self):
         self.canvas_widget.delete_choose()
         
+    def copy_action(self):
+        self.canvas_widget.copy_item()
+        
+    def paste_action(self):
+        self.canvas_widget.paste_item()
+    
     def get_id(self):
         _id = str(self.item_cnt)
         #self.item_cnt += 1
@@ -860,6 +901,10 @@ class MainWindow(QMainWindow):
     def line_bresenham_action(self):
         self.canvas_widget.start_draw('line','Bresenham')
         self.statusBar().showMessage('Bresenham算法绘制线段')
+        
+    def dotted_line_action(self):
+        self.canvas_widget.start_draw('dot_line','default')
+        self.statusBar().showMessage('绘制虚线段')
     
     def polygon_bresenham_action(self):
         self.canvas_widget.start_draw('polygon','Bresenham')

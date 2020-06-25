@@ -84,13 +84,15 @@ def draw_line(p_list, algorithm):
 
 def draw_dotted_line(p_list):
     pixels = draw_line(p_list, 'Bresenham')
-    cnt = -3
+    cnt = 0
     result = []
     for p in pixels:
-        if cnt<=5:
+        if cnt == 10:
+            cnt = 0
+        if cnt>=3:
             result.append(p)
         else:
-            cnt = -3
+            pass
         cnt = cnt+1
     return result
 
