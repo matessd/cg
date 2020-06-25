@@ -48,6 +48,7 @@ def is_close(pos0, pos1):
         return False
 
 def atoi(s):
+   """将字符串转化为数字"""
    s = s[::-1]
    num = 0
    for i, v in enumerate(s):
@@ -160,6 +161,8 @@ class MyCanvas(QGraphicsView):
                 tmp_p_list = self.temp_item.p_list[0][:]
                 self.temp_item.p_list.append(tmp_p_list)
                 self.updateScene([self.sceneRect()])
+            self.temp_item.edit_type = 'polygon_fit'
+            self.updateScene([self.sceneRect()])
         self.finish_draw()
         
     def clear_selection(self):
@@ -635,6 +638,11 @@ class MyItem(QGraphicsItem):
                     #下面这句加了后,画布大小改变后再删除图元会崩溃
                     # g_canvas.scene().removeItem(self)
                     return
+        elif self.edit_type == 'polygon_fit':
+            painter.setPen(QColor(0,0,255))
+            polygon_fit(painter, self)
+            self.edit_clear()
+        
         item_pixels = []
         if new_p_list != []:
             if self.id == g_canvas.cur_id:
@@ -691,6 +699,64 @@ class MyItem(QGraphicsItem):
             w = w-x
             h = h-y
         return [x,y,w,h]
+
+def polygon_fit(painter, item):
+    [x,y,w,h] = item.compute_region(item.p_list)
+    w = w+x
+    h = h+y
+    pixels = item.pixels[:]
+    for p in pixels:
+        painter.drawPoint(*[p[0]+10,p[1]])
+    # print(pixels)
+    p_list = item.p_list[:]
+    """for p in p_list:
+        if p in pixels:
+            pixels.remove(p)"""
+    pixels.sort()
+    pix = []
+    vertical = []
+    curx = pixels[0][0]
+    for p in pixels:
+        if curx == p[0]:
+            vertical.append(p)
+        else:
+            pix.append(vertical[:])
+            vertical = []
+            curx = p[0]
+            vertical.append(p)
+    pix.append(vertical[:])
+    # print(pix)
+    for posList in pix:
+        xpos = posList[0][0]
+        parity = False
+        leng = len(posList)
+        for i in range(leng):
+            if parity == False:
+                parity = True
+            else:
+                parity = False
+                y0 = posList[i-1][1]
+                y1 = posList[i][1]
+                for y in range(y0+1,y1):
+                    painter.drawPoint(*[xpos, y])
+    """for xpos in range(x, w):
+        px = pixels[index][0]
+        parity = False
+        while(px==xpos):
+            px1 = pixels[index+1][0]"""
+    """for ypos in range(y+1, h):
+        parity = False
+        for xpos in range(x, w):
+            pos = [xpos, ypos]
+            if parity == False:
+                if pos in pixels :
+                    parity = True
+            else:
+                if pos in pixels:
+                    parity = False
+                else:
+                    painter.drawPoint(*pos)"""
+    return
 
 class MainWindow(QMainWindow):
     """
