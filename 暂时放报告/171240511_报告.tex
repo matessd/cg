@@ -41,17 +41,18 @@
 
 %--
 \begin{document}
-\title{\textbf{《计算机图形学》 5月报告 }}
+\title{\textbf{《计算机图形学》 6月报告 }}
 \author{学号，姓名，\href{mailto:xxx@xxx.com}{171240511@smail.nju.edu.cn}}
 \maketitle
 
 \section{综述}
 在老师所给框架代码上进行修改完善,完成了所有要求的指令输入输出,GUI界面实现了所CLI部分的所有功能,包括设置画笔颜色、重置画布、保存画布、两种算法绘制线段、两种算法绘制多边形、绘制椭圆、两种算法绘制曲线、平移、旋转、缩放和两种算法裁剪线段.\\
-\indent 额外实现了如下功能:
+\indent 额外实现了如下内容:
 \begin{itemize}
-\item 点击画布右、下、右下角边框调整画布大小; 点击画布选择图元; 编辑时显示控制点.
-\item 删除选中图元,复制选中图元,粘贴选中图元.
+\item 点击画布右、下、右下角边框调整画布大小; 点击画布选择图元; 编辑时显示平移等操作控制点.
+\item 删除选中图元,复制选中图元,粘贴已复制图元.
 \item 绘制虚线段.
+\item 更美观的界面.
 \end{itemize}
 \section{算法介绍}
 \subsection{绘制线段}
@@ -234,6 +235,7 @@ for i in range(g_list_widget.count()):
 \item 添加了点击画布选择图元功能. 最开始试图使用QGraphicsScene的itemAt方法,发现两个item重叠多的时候很难选,于是改成记录图元的所有点,与鼠标点击的坐标逐一比对.此外,清除对图元的选择点击右边clear selection即可.
 \item 添加了删除选中图元,复制选中图元和粘贴选中图元的功能.
 \item 添加了平移缩放等操作时的控制点显示.
+\item 界面进行修改,按钮用icon代替,微调了界面的颜色.
 \end{itemize}
 \subsubsection{bug修正及其他更新}
 \begin{itemize}

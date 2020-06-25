@@ -220,6 +220,7 @@ class MyCanvas(QGraphicsView):
     def paste_item(self):
         self.check_finish()
         if g_copy_item == None:
+            print("请先复制一个图元.")
             return
         item = copy_MyItem(g_copy_item)
         self.main_window.id_inc()
@@ -850,7 +851,6 @@ class MainWindow(QMainWindow):
     #clear and resize canvas
     def reset_canvas(self):
         self.statusBar().showMessage('重置画布')
-        self.canvas_widget.clear_canvas()
         #resize
         text1,ok1 = QInputDialog.getText(self, '输入画布尺寸', 'x轴大小:')
         text2,ok2 = QInputDialog.getText(self, '输入画布尺寸', 'y轴大小:')
@@ -861,6 +861,7 @@ class MainWindow(QMainWindow):
         if x>1000 or x<100 or y>1000 or y<100:
             print("x and y must in [100,1000], please input again.")
             return
+        self.canvas_widget.clear_canvas()
         self.canvas_widget.setFixedSize(x+10, y+10)
         self.scene.setSceneRect(0, 0, x, y)
         self.resize(x, y)
