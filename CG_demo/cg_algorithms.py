@@ -82,6 +82,19 @@ def draw_line(p_list, algorithm):
     return result
 
 
+def draw_dotted_line(p_list):
+    pixels = draw_line(p_list, 'Bresenham')
+    cnt = -3
+    result = []
+    for p in pixels:
+        if cnt<=5:
+            result.append(p)
+        else:
+            cnt = -3
+        cnt = cnt+1
+    return result
+
+
 def draw_polygon(p_list, algorithm):
     """绘制多边形
 

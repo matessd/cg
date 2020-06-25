@@ -511,6 +511,18 @@ class MyItem(QGraphicsItem):
             painter.drawPoint(*[poi[0]-1,poi[1]-1])
             return
         
+        def paint_small_cycle(painter, p_list):
+            for poi in p_list:
+                pixels = alg.draw_ellipse([[poi[0]-2,poi[1]-2],[poi[0]+2,poi[1]+2]])
+                for p in pixels:
+                    painter.drawPoint(*p)
+            return
+        
+        def paint_dotted_line(painter, p_list):
+            pixels = alg.draw_dotted_line(p_list)
+            for p in pixels:
+                painter.drawPoint(*p)
+        
         if self.p_list == [] or self.item_type == 'delete':
             # be deleted
             return
@@ -518,6 +530,11 @@ class MyItem(QGraphicsItem):
         # change p_list accoring to edit_type
         new_p_list = self.p_list
         if self.edit_type == 'translate':
+            # 控制点
+            painter.setPen(QColor(0,0,255))
+            paint_small_cycle(painter, [self.poi, self.poi1])
+            paint_dotted_line(painter, [self.poi, self.poi1])
+            
             new_p_list = alg.translate(self.p_list, self.poi1[0]-self.poi[0], \
                                         self.poi1[1]-self.poi[1])
             if self.edit_over == 1:
@@ -529,7 +546,13 @@ class MyItem(QGraphicsItem):
                 print("Can't rotate ellipse.")
                 self.edit_finish(self.p_list)
             else:
-                if self.param_cnt == 2:
+                painter.setPen(QColor(0,0,255))
+                if self.param_cnt==1:
+                    paint_small_cycle(painter, [self.center])
+                elif self.param_cnt == 2:
+                    paint_small_cycle(painter, [self.center, self.poi, self.poi1])
+                    paint_dotted_line(painter, [self.center, self.poi])
+                    paint_dotted_line(painter, [self.center, self.poi1])
                     # center and poi, poi1 all gotten
                     theta = angle([self.center, self.poi], [self.center, self.poi1])
                     new_p_list = alg.rotate(self.p_list, \
@@ -538,7 +561,13 @@ class MyItem(QGraphicsItem):
                     # clear
                     self.edit_finish(new_p_list)
         elif self.edit_type == 'scale':
+            painter.setPen(QColor(0,0,255))
+            if self.param_cnt == 1:
+                paint_small_cycle(painter, [self.center])
             if self.param_cnt == 2:
+                paint_small_cycle(painter, [self.center, self.poi, self.poi1])
+                paint_dotted_line(painter, [self.center, self.poi])
+                paint_dotted_line(painter, [self.center, self.poi1])
                 # 缩放倍数, 根据dx的比值确定
                 if self.poi[0]-self.center[0] == 0:
                     s = 1
