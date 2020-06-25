@@ -228,14 +228,14 @@ for i in range(g_list_widget.count()):
 \subsection{6月更新}
 1.修正多边形没画完就edit不会自动终止的bug.\\
 3.对于当前不在修改中的图元,记录下它的所有像素点,update的时候就不再用算法生成,这避免了曲线太多时卡顿的情况.\\
-4.添加了点击画布选择图元, 试图使用QGraphicsScene的itemAt方法,发现两个item重叠多的时候很难选,于是改成记录图元的所有点,与鼠标点击的坐标逐一比对.\\
+4.添加了点击画布选择图元, 试图使用QGraphicsScene的itemAt方法,发现两个item重叠多的时候很难选,于是改成记录图元的所有点,与鼠标点击的坐标逐一比对.此外,清除对图元的选择点击右边clear selection即可.\\
 5.优化了下GUI中鼠标点击事件的分支代码,使其更为精简.\\
 6.修正了重置画布时输入奇怪字符,导致之后text转换成int报错的问题,具体办法是不用int()函数,而是自己写atoi函数.\\
 7.修正了连续绘制多个多边形时,由于第一个完成后g\_draw\_finish等于1,最后一个多边形如果没完成就做别的事,不会自动补上最后一边的bug.\\
 8.QListWidget是根据currentTextChanged来切换item的,这就导致如果就一个item,选中一次后,这时如果进行别的操作时clearSelection,再点这个item就选不中了,因为它认为你的text没有变化.因此clearSelection前要setCurrentRow(-1).\\
-9.限制鼠标点击事件的点在[0,g\_width], [0,g\_height]之间, 不然经常往外拖就会崩溃.\\
+9.限制鼠标点击事件的点在[0,g\_width], [0,g\_height]之间, 不然经常往外拖就会崩溃.同时,如果图元被操作到完全处于边界外,比如平移,接下来对它的任何编辑操作都不起作用,也就是说无法再移回来了.\\
 10.QInputDialog.getText()在重置一遍后,clip几下,调用就会崩溃,发现把自己遍历clear scene改为调用默认的clear就好了.\\
-11.处理了图元超出边界的情况
+11.添加了删除图元的功能.\\
 \bibliographystyle{plain}%
 %"xxx" should be your citing file's name.
 \bibliography{cgref}

@@ -187,6 +187,22 @@ class MyCanvas(QGraphicsView):
     def choose_item(self):
         self.status = 'choose'
         
+    def delete_choose(self):
+        self.check_finish()
+        if self.selected_id == '':
+            print("请选中图元.")
+            return
+        sid = self.selected_id
+        self.clear_selection()
+        g_list_widget.takeItem(g_list_widget.currentRow())
+        
+        item = self.item_dict[sid]
+        item.item_type = 'delete'
+        item.p_list = []
+        item.pixels = []
+        del self.item_dict[sid]
+        self.updateScene([self.sceneRect()])
+        
     def mousePressEvent(self, event: QMouseEvent) -> None:
         pos = self.mapToScene(event.localPos().toPoint())
         x = int(pos.x())
@@ -198,7 +214,7 @@ class MyCanvas(QGraphicsView):
         # choose item by clicking canvas
         if self.status == 'choose':
             # item = g_canvas.scene().itemAt(x, y, g_transform)
-            items = g_canvas.scene().items()
+            items = self.item_dict.values()
             pos = [x,y]
             # break_flg
             b_flg = False
@@ -277,10 +293,8 @@ class MyCanvas(QGraphicsView):
                     self.item_dict[sid].poi1 = [x,y]
                     self.item_dict[sid].param_cnt = 2
                 else:
-                    # cannot appear this situation, clear
-                    item = self.item_dict[sid]
-                    print(item.id, item.param_cnt, item.p_list)
-                    print("error, rotate or scale not over")
+                    self.status = ''
+                    self.item_dict[sid].edit_clear()
             else:
                 print("Undefined Behavior: No such edit situation")
                 return ''
@@ -355,7 +369,7 @@ class MyCanvas(QGraphicsView):
                 elif self.item_dict[sid].param_cnt == 2:
                     self.item_dict[sid].poi1 = [x,y]
                 else:
-                    self.item_dict[sid].edit_clear()
+                    print("error, rotate or scale not over")
         
         if self.is_image_scaling == 0:
             move_draw()
@@ -397,7 +411,7 @@ class MyCanvas(QGraphicsView):
                 elif self.item_dict[sid].param_cnt == 2:
                     self.item_dict[sid].edit_over = 1               
                 else:
-                    self.item_dict[sid].edit_clear()
+                    print("error, rotate or scale not over")
         
         if self.is_image_scaling == 0:
             release_draw()
@@ -439,7 +453,7 @@ class MyItem(QGraphicsItem):
         self.edit_over = 0 # if the transformation operation over
         self.param_cnt = 0 # some operation needs 2 mouse_press
         # 记录鼠标移动时显示的前一个p_list
-        self.old_p_list = p_list
+        self.old_p_list = p_list[:]
         
     def edit_clear(self):
         self.edit_type = ''
@@ -452,7 +466,7 @@ class MyItem(QGraphicsItem):
     
     def edit_finish(self, new_p_list):
         self.edit_clear()
-        self.old_p_list = self.p_list
+        self.old_p_list = self.p_list[:]
         self.p_list = new_p_list
         
     def get_draw_pixels(self, p_list, algorithm):
@@ -496,15 +510,6 @@ class MyItem(QGraphicsItem):
             painter.drawPoint(*[poi[0]-1,poi[1]+1])
             painter.drawPoint(*[poi[0]-1,poi[1]-1])
             return
-        
-        def is_out_of_bound(p_list):
-            [x,y,w,h] = self.compute_region(p_list)
-            w = w+x
-            h = h+y
-            if x<0 or y<0 or w>g_width or h>g_height:
-                return True
-            else:
-                return False
         
         if self.p_list == [] or self.item_type == 'delete':
             # be deleted
@@ -571,11 +576,6 @@ class MyItem(QGraphicsItem):
                     #下面这句加了后,画布大小改变后再删除图元会崩溃
                     # g_canvas.scene().removeItem(self)
                     return
-        if is_out_of_bound(new_p_list):
-            # 超出边界时保持不变
-            new_p_list = self.old_p_list
-        
-        self.old_p_list = new_p_list
         item_pixels = []
         if new_p_list != []:
             if self.id == g_canvas.cur_id:
@@ -668,6 +668,7 @@ class MainWindow(QMainWindow):
         reset_canvas_act = menubar.addAction('重置画布')
         save_canvas_act = menubar.addAction('保存画布')
         choose_item_act = menubar.addAction('选择图元')
+        delete_choose_act = menubar.addAction('删除图元')
         exit_act = menubar.addAction('退出')
         
         # 设置绘图工具栏
@@ -710,6 +711,7 @@ class MainWindow(QMainWindow):
         save_canvas_act.triggered.connect(self.save_canvas)
         # 选择图元
         choose_item_act.triggered.connect(self.choose_item)
+        delete_choose_act.triggered.connect(self.delete_choose)
         # 退出
         exit_act.triggered.connect(qApp.quit)
         # line
@@ -805,6 +807,9 @@ class MainWindow(QMainWindow):
 
     def choose_item(self):
         self.canvas_widget.choose_item()
+        
+    def delete_choose(self):
+        self.canvas_widget.delete_choose()
         
     def get_id(self):
         _id = str(self.item_cnt)
