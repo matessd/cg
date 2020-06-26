@@ -230,6 +230,15 @@ class MyCanvas(QGraphicsView):
         item.id = self.main_window.get_id()
         self.add_item(item)
     
+    def padding(self):
+        """填充"""
+        self.check_finish()
+        if self.selected_id == '':
+            print("请先选择一个图元.")
+            return
+        self.item_dict[self.selected_id].edit_type = 'poly_padding'
+        self.updateScene([self.sceneRect()])
+    
     def add_item(self, item):
         self.scene().addItem(item)
         self.item_dict[item.id] = item
@@ -638,9 +647,9 @@ class MyItem(QGraphicsItem):
                     #下面这句加了后,画布大小改变后再删除图元会崩溃
                     # g_canvas.scene().removeItem(self)
                     return
-        elif self.edit_type == 'polygon_fit':
-            painter.setPen(QColor(0,0,255))
-            polygon_fit(painter, self)
+        elif self.edit_type == 'poly_padding':
+            painter.setPen(QColor(255,0,255))
+            polygon_padding(painter, self)
             self.edit_clear()
         
         item_pixels = []
@@ -662,7 +671,8 @@ class MyItem(QGraphicsItem):
         if self.selected:
             painter.setPen(QColor(255, 0, 0))
             painter.drawRect(self.regionRect(new_p_list))
-    
+            pass
+        
     #绘制item时所需范围
     def boundingRect(self) -> QRectF:
         x,y,w,h = self.compute_region(self.p_list)
@@ -700,22 +710,17 @@ class MyItem(QGraphicsItem):
             h = h-y
         return [x,y,w,h]
 
-def polygon_fit(painter, item):
-    [x,y,w,h] = item.compute_region(item.p_list)
-    w = w+x
-    h = h+y
+def polygon_padding(painter, item):
     pixels = item.pixels[:]
-    for p in pixels:
-        painter.drawPoint(*[p[0]+10,p[1]])
-    # print(pixels)
     p_list = item.p_list[:]
-    """for p in p_list:
-        if p in pixels:
-            pixels.remove(p)"""
+    for p in p_list:
+        while p in pixels:
+            pixels.remove(p)
     pixels.sort()
     pix = []
     vertical = []
     curx = pixels[0][0]
+    # 将同样x的归到一组
     for p in pixels:
         if curx == p[0]:
             vertical.append(p)
@@ -729,33 +734,20 @@ def polygon_fit(painter, item):
     for posList in pix:
         xpos = posList[0][0]
         parity = False
-        leng = len(posList)
-        for i in range(leng):
+        le = len(posList)
+        oldy = posList[0][1]
+        for i in range(le):
+            cury = posList[i][1]
+            if i<le-1:
+                if posList[i+1][1] in [cury+1,cury]:
+                    continue
             if parity == False:
                 parity = True
             else:
                 parity = False
-                y0 = posList[i-1][1]
-                y1 = posList[i][1]
-                for y in range(y0+1,y1):
-                    painter.drawPoint(*[xpos, y])
-    """for xpos in range(x, w):
-        px = pixels[index][0]
-        parity = False
-        while(px==xpos):
-            px1 = pixels[index+1][0]"""
-    """for ypos in range(y+1, h):
-        parity = False
-        for xpos in range(x, w):
-            pos = [xpos, ypos]
-            if parity == False:
-                if pos in pixels :
-                    parity = True
-            else:
-                if pos in pixels:
-                    parity = False
-                else:
-                    painter.drawPoint(*pos)"""
+                for y in range(oldy,cury):
+                    painter.drawPoint(*(xpos, y))
+            oldy = cury
     return
 
 class MainWindow(QMainWindow):
@@ -857,12 +849,15 @@ class MainWindow(QMainWindow):
         clip_liang_barsky_act.setStatusTip('Liang-Barsky算法裁剪线段')
         choose_item_act = QAction(QIcon('../icons/select.png'),'choose', self)
         choose_item_act.setStatusTip('选择图元')
+        padding_act = QAction(QIcon('../icons/select.png'),'padding', self)
+        padding_act.setStatusTip('填充')
         edit_toolbar.addAction(translate_act)
         edit_toolbar.addAction(rotate_act)
         edit_toolbar.addAction(scale_act)
         edit_toolbar.addAction(clip_cohen_sutherland_act)
         edit_toolbar.addAction(clip_liang_barsky_act)
         edit_toolbar.addAction(choose_item_act)
+        edit_toolbar.addAction(padding_act)
 
         # 连接信号和槽函数
         # 画笔
@@ -899,6 +894,7 @@ class MainWindow(QMainWindow):
         # 裁剪
         clip_cohen_sutherland_act.triggered.connect(self.clip_cohen_sutherland_action)
         clip_liang_barsky_act.triggered.connect(self.clip_liang_barsky_action)
+        padding_act.triggered.connect(self.padding_action)
         
         self.list_widget.currentTextChanged.connect(self.canvas_widget.selection_changed)
 
@@ -980,6 +976,9 @@ class MainWindow(QMainWindow):
         
     def paste_action(self):
         self.canvas_widget.paste_item()
+        
+    def padding_action(self):
+        self.canvas_widget.padding()
     
     def get_id(self):
         _id = str(self.item_cnt)
