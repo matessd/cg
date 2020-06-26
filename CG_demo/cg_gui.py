@@ -70,11 +70,13 @@ def get_limit_pos(x, is_x):
 def copy_MyItem(src):
     sid = src.id
     status = src.item_type
-    p_list = src.p_list
+    p_list = src.p_list[:]
     algorithm = src.algorithm
     item = MyItem(sid, status, p_list, algorithm)
     item.pixels =  src.pixels[:]
     item.penColor = src.penColor
+    item.paddingColor = src.paddingColor
+    item.isPadding = src.isPadding
     return item
 
 class MyCanvas(QGraphicsView):
@@ -118,10 +120,6 @@ class MyCanvas(QGraphicsView):
         g_draw_finish = 1
         global g_penColor
         g_penColor = QColor(0,0,0)
-    
-    """def clear_scene(self):
-        for item in self.scene().items():
-            self.scene().removeItem(item)"""
     
     def start_draw(self, status, algorithm):
         self.check_finish()
@@ -236,7 +234,12 @@ class MyCanvas(QGraphicsView):
         if self.selected_id == '':
             print("请先选择一个图元.")
             return
-        self.item_dict[self.selected_id].edit_type = 'poly_padding'
+        item = self.item_dict[self.selected_id]
+        if item.item_type not in ['polygon','ellipse']:
+            print("不能对多边形和椭圆以外的图元填充.")
+            return
+        item.paddingColor = QColorDialog.getColor()
+        item.isPadding = True
         self.updateScene([self.sceneRect()])
     
     def add_item(self, item):
@@ -410,7 +413,7 @@ class MyCanvas(QGraphicsView):
                     pass
                 elif self.item_dict[sid].param_cnt == 2:
                     self.item_dict[sid].poi1 = [x,y]
-                else:
+                elif self.item_dict[sid].param_cnt>2:
                     print("error, rotate or scale not over")
         
         if self.is_image_scaling == 0:
@@ -452,7 +455,7 @@ class MyCanvas(QGraphicsView):
                     pass
                 elif self.item_dict[sid].param_cnt == 2:
                     self.item_dict[sid].edit_over = 1               
-                else:
+                elif self.item_dict[sid].param_cnt>2:
                     print("error, rotate or scale not over")
         
         if self.is_image_scaling == 0:
@@ -494,6 +497,9 @@ class MyItem(QGraphicsItem):
         self.center = [0,0] # [x,y] of center
         self.edit_over = 0 # if the transformation operation over
         self.param_cnt = 0 # some operation needs 2 mouse_press
+        # for padding
+        self.paddingColor = None
+        self.isPadding = False
         
     def edit_clear(self):
         self.edit_type = ''
@@ -647,10 +653,10 @@ class MyItem(QGraphicsItem):
                     #下面这句加了后,画布大小改变后再删除图元会崩溃
                     # g_canvas.scene().removeItem(self)
                     return
-        elif self.edit_type == 'poly_padding':
-            painter.setPen(QColor(255,0,255))
+        # 填充
+        if self.isPadding:
+            painter.setPen(self.paddingColor)
             polygon_padding(painter, self)
-            self.edit_clear()
         
         item_pixels = []
         if new_p_list != []:
@@ -712,15 +718,10 @@ class MyItem(QGraphicsItem):
 
 def polygon_padding(painter, item):
     pixels = item.pixels[:]
-    p_list = item.p_list[:]
-    for p in p_list:
-        while p in pixels:
-            pixels.remove(p)
     pixels.sort()
     pix = []
     vertical = []
     curx = pixels[0][0]
-    # 将同样x的归到一组
     for p in pixels:
         if curx == p[0]:
             vertical.append(p)
@@ -849,8 +850,8 @@ class MainWindow(QMainWindow):
         clip_liang_barsky_act.setStatusTip('Liang-Barsky算法裁剪线段')
         choose_item_act = QAction(QIcon('../icons/select.png'),'choose', self)
         choose_item_act.setStatusTip('选择图元')
-        padding_act = QAction(QIcon('../icons/select.png'),'padding', self)
-        padding_act.setStatusTip('填充')
+        padding_act = QAction(QIcon('../icons/padding.png'),'padding', self)
+        padding_act.setStatusTip('填充图元,仅限凸多边形和椭圆')
         edit_toolbar.addAction(translate_act)
         edit_toolbar.addAction(rotate_act)
         edit_toolbar.addAction(scale_act)
@@ -1064,14 +1065,13 @@ class MyProxyStyle(QProxyStyle):
     
 if __name__ == '__main__':
     app = QApplication(sys.argv)
+    # print(dir(QGraphicsScene))
+    # help(QListWidget.row)
+    mw = MainWindow()
     # The proxy style should be based on an existing style,
     # like 'Windows', 'Motif', 'Plastique', 'Fusion', ...
     myStyle = MyProxyStyle('Fusion')
     app.setStyle(myStyle)
-    # print(dir(QGraphicsScene))
-    # help(QListWidget.row)
-    # print(dir(QListWidget.setCurrentIndex))
-    mw = MainWindow()
     palette1 = QPalette()
     palette1.setColor(palette1.Background, QColor(236,240,241))
     mw.setPalette(palette1)

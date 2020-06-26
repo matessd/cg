@@ -46,12 +46,12 @@
 \maketitle
 
 \section{综述}
-在老师所给框架代码上进行修改完善,完成了所有要求的指令输入输出,GUI界面实现了所CLI部分的所有功能,包括设置画笔颜色、重置画布、保存画布、两种算法绘制线段、两种算法绘制多边形、绘制椭圆、两种算法绘制曲线、平移、旋转、缩放和两种算法裁剪线段.\\
+在老师所给框架代码上进行修改完善,完成了所有要求的指令输入输出,GUI界面实现了CLI部分的所有功能,包括设置画笔颜色、重置画布、保存画布、两种算法绘制线段、两种算法绘制多边形、绘制椭圆、两种算法绘制曲线、平移、旋转、缩放和两种算法裁剪线段.\\
 \indent 额外实现了如下内容:
 \begin{itemize}
 \item 点击画布右、下、右下角边框调整画布大小; 点击画布选择图元; 编辑时显示平移等操作控制点.
 \item 删除选中图元,复制选中图元,粘贴已复制图元.
-\item 绘制虚线段.
+\item 绘制虚线段; 凸多边形和椭圆填充.
 \item 更美观的界面.
 \end{itemize}
 \section{算法介绍}
@@ -123,7 +123,7 @@ gui部分沿用了老师MainWindow(继承QMainWindow)作为主窗口, MyCanvas(�
 	\item 最中间的则是画布区域, 定义MyCanvas类, 可以用鼠标操作绘图.
 \end{itemize}
 \begin{figure}[H]
-	\includegraphics[width=5in,height=3in]{total.png}
+	\includegraphics[width=5in,height=4in]{total.png}
 \end{figure}
 \subsection{GUI功能}
 \subsubsection{菜单栏}
@@ -170,7 +170,7 @@ else:
 \subsubsection{编辑工具栏}
 \indent 任何编辑操作前都要点击右边窗口选择图元.\\
 \indent 为了处理不同的编辑操作, 在MyItem中添加str类型的trans\_type成员, 用于判断编辑操作.\\
-\indent 平移操作时, 鼠标按下的点为[x0,y0], 移动时为[x1,y1], 计算出dx,dy并paint.\\
+\indent 平移操作时, 鼠标按下的点为[x0,y0], 移动时为[x1,y1], 计算出dx,dy并paint.(如果完全平移出画布,接下来这个图元的任何编辑操作都不生效了,但复制粘贴等菜单操作还可以)\\
 \indent 旋转操作需要鼠标点击两次, 第一次点击确定了旋转中心坐标, 记录在MyItem的center中, 第二次点击和移动则确定了两个新的点存在MyItem的poi和poi1中,这时poi1-center和poi-center的夹角即为旋转角.注意椭圆不能旋转, 关键代码如下:\\
 \begin{lstlisting}[language={python}]
 if self.item_type == 'ellipse':
@@ -198,9 +198,26 @@ if tmp_p_list != []:
     for p in tmp_pixels:
         thick_draw_point(painter, p)
 \end{lstlisting}
+\indent\\
 \indent 如果裁剪对象不是线段, 则不起作用. 而如果裁剪后线段什么点也没剩下,仍然保留QListWiget中该图元,但是无法对其进行任何操作.
+\subsubsection{右侧列表栏}
+这部分专门用于图元选择.最上面的clear selection点击可以清除对图元的选择.
 \subsection{额外功能}
-目前实现的额外功能是点击画布右、下、右下角边框后拖动调整画布大小, 这个功能并不会对正在进行的绘制有影响. 具体是通过MyCanvas中的is\_image\_scaling来判断情况的, 关键代码如下:\\
+\subsubsection{界面美化}
+首先是通过谷歌搜索得到相应图标,并手动修改,然后通过QAction类初始化的时候设置Icon.\\
+\indent 然后是设置了主窗口的颜色和style,部分代码如下:\\
+\begin{lstlisting}[language={python}]
+# The proxy style should be based on an existing style,
+# like 'Windows', 'Motif', 'Plastique', 'Fusion', ...
+myStyle = MyProxyStyle('Fusion')
+app.setStyle(myStyle)
+palette1 = QPalette()
+palette1.setColor(palette1.Background, QColor(236,240,241))
+mw.setPalette(palette1)
+\end{lstlisting}
+\subsubsection{菜单部分}
+首先是实现了点击画布右、下、右下角边框后拖动调整画布大小.\\
+\indent 这个功能并不会对正在进行的绘制有影响. 具体是通过MyCanvas中的is\_image\_scaling来判断情况的, 关键代码如下:\\
 \begin{lstlisting}[language={python}]
 if g_width-5 <= x <= g_width+5 and g_height-5 <= y <= g_height+5:
     self.is_image_scaling = 3  
@@ -209,16 +226,24 @@ elif g_width-5 <= x <= g_width+5:
 elif g_height-5 <= y <= g_height+5:  
     self.is_image_scaling = 2
 \end{lstlisting}
-选择图元中最难搞的是要同步更新QListWidget中的Select, QListWidget里面的selectionChanged函数的参数不好获取,查了半天没查明白,最后换成了下面的形式,参考了\cite{choose}:\\
+\indent\\
+\indent 接着是删除图元操作. 删除图元操作的难点在于要同步MyCanvas和QListwidget的更新,只要一个更新除了问题,将来跑着跑着就会莫名崩溃.具体代码细节比较多,就不贴了.\\
+\indent 复制图元和粘贴图元的思想是用一个全局变量来保存复制的图元,粘贴的时候将其加入,更新MyCanvas和QListWidget.这部分的重点在于复制的时候要注意深度拷贝,不然将来操作被复制图元和复制图元的时候可能会出问题,例如:item.pixels = src.pixels[:]\\
+\subsubsection{绘图工具栏}
+\indent 这部分就额外实现了一个虚线段,基本和线段是一致的.\\
+\subsubsection{编辑工具栏}
+先是选择图元操作.它最复杂的部分和删除图元其实类似,要同步更新QListWidget中的Select, QListWidget里面的selectionChanged函数的参数不好获取,查了半天没查明白,最后换成了下面的形式,参考了\cite{choose}:\\
 \begin{lstlisting}[language={python}]
 for i in range(g_list_widget.count()):
-    widget_item = g_list_widget.item(i)
-    strList = widget_item.text().split()
-    if(strList[-1] == id):
-        blocker = QSignalBlocker(g_list_widget)
-        widget_item.setSelected(True)
-        break
+widget_item = g_list_widget.item(i)
+strList = widget_item.text().split()
+if(strList[-1] == id):
+blocker = QSignalBlocker(g_list_widget)
+widget_item.setSelected(True)
+break
 \end{lstlisting}
+\indent\\
+\indent 然后是填充操作,该操作只能填充凸多边形和椭圆,对其他类型图元会在控制台提示有问题,对凹多边形则不保证结果,只能保证不把程序弄崩溃(就我的尝试,基本填充都会空一点).代码部分的基本思想就是一排排垂直线推过去,找寻要填充的部分,然后一条条填充.
 \section{总结}
 \subsection{遇到的一些问题}
 \begin{itemize}
@@ -236,7 +261,7 @@ for i in range(g_list_widget.count()):
 \item 添加了删除选中图元,复制选中图元和粘贴选中图元的功能.
 \item 添加了平移缩放等操作时的控制点显示.
 \item 界面进行修改,按钮用icon代替,微调了界面的颜色.
-\item 填充算法最难的是斜率比较大的时候竖着一个点周围还有其他点.
+\item 添加了凸多边形和椭圆填充.(填充凹多边形最难的是斜率比较大的时候竖着一个点周围还有其他点)
 \end{itemize}
 \subsubsection{bug修正及其他更新}
 \begin{itemize}
